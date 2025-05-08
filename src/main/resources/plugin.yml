@@ -2,7 +2,7 @@ name: BossEventManager
 version: ${project.version}
 main: io.mewb.bossEventManager.BossEventManagerPlugin
 api-version: 1.19
-author: MEWB - NOT INTENDED FOR RESALE
+author: MEWB - NOT INTENDED FOR RESALE.
 description: A custom boss event plugin with party integration and instanced arenas.
 
 # Hard Dependencies: Your plugin will NOT load if these are missing.
