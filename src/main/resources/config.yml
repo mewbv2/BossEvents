@@ -2,133 +2,153 @@
 # BossEventManager Configuration                                                       #
 # ------------------------------------------------------------------------------------ #
 
-plugin-prefix: "&8[&bBossEvents&8] &r"
-debug-mode: false
+    plugin-prefix: "&8[&bBossEvents&8] &r"
+    debug-mode: false
 
-party:
-  min-size: 2
-  max-size: 5
+    party:
+      min-size: 2
+      max-size: 5
 
-economy:
-  default-gem-cost: 100
+    economy:
+      default-gem-cost: 100
 
-bosses:
-  skeleton_king:
-    display-name: "&cSkeleton King"
-    mythicmob-id: "SkeletonKingBoss"
-    modelengine-id: "skeleking_model"
-    gui-icon: "SKELETON_SKULL"
-    description:
-      - "&7A fearsome undead monarch."
-      - "&7Known for his legion of minions."
-      - ""
-      - "&eDifficulty: &6Hard"
-    gem-cost: 150
-    required-level: 10
-    arena-theme: "catacombs_theme" # Links to an ID in arena-themes
-    rewards:
-      - "eco give %player% 1000"
-      - "minecraft:give %player% diamond 5"
-      - "mm i give %player% SkeletonKingSword 1"
-      - "broadcast &6%player% &eand their party have vanquished the &cSkeleton King&e!"
-    party-size-scaling:
-      health-per-member: 500.0
-      damage-multiplier-per-member: 0.05
+    bosses:
+      skeleton_king:
+        display-name: "&cSkeleton King"
+        difficulty: "Hard" # Added difficulty field
+        mythicmob-id: "SkeletonKingBoss"
+        modelengine-id: "skeleking_model"
+        gui-icon: "SKELETON_SKULL"
+        description:
+          - "&7A fearsome undead monarch."
+          - "&7Known for his legion of minions."
+          - ""
+          # Difficulty is now a separate field, but can still be in lore
+          - "&eDifficulty: &6Hard"
+        gem-cost: 150
+        required-level: 10
+        # arena-theme: "catacombs_theme" # REMOVED - Chosen by player now
+        rewards:
+          - "eco give %player% 1000"
+          - "minecraft:give %player% diamond 5"
+          - "mm i give %player% SkeletonKingSword 1"
+          - "broadcast &6%player% &eand their party have vanquished the &cSkeleton King&e!"
+        party-size-scaling:
+          health-per-member: 500.0
+          damage-multiplier-per-member: 0.05
 
-  goblin_chieftain:
-    display-name: "&2Goblin Chieftain"
-    mythicmob-id: "GoblinChieftainBoss"
-    gui-icon: "PLAYER_HEAD"
-    description:
-      - "&7The brutish leader of the forest goblins."
-      - "&7Watch out for his sneaky traps!"
-      - ""
-      - "&eDifficulty: &aEasy"
-    gem-cost: 75
-    arena-theme: "forest_outpost_theme" # Links to an ID in arena-themes
-    rewards:
-      - "eco give %player% 250"
-      - "minecraft:give %player% iron_ingot 10"
-      - "broadcast &6%player% &eand their party have bested the &2Goblin Chieftain&e!"
+      goblin_chieftain:
+        display-name: "&2Goblin Chieftain"
+        difficulty: "Easy" # Added difficulty field
+        mythicmob-id: "GoblinChieftainBoss"
+        gui-icon: "PLAYER_HEAD"
+        description:
+          - "&7The brutish leader of the forest goblins."
+          - "&7Watch out for his sneaky traps!"
+          - ""
+          - "&eDifficulty: &aEasy"
+        gem-cost: 75
+        # required-level: 0
+        # arena-theme: "forest_outpost_theme" # REMOVED - Chosen by player now
+        rewards:
+          - "eco give %player% 250"
+          - "minecraft:give %player% iron_ingot 10"
+          - "broadcast &6%player% &eand their party have bested the &2Goblin Chieftain&e!"
 
-# GUI Settings
-gui:
-  boss-selection:
-    title: "&1&lSelect a Boss Event"
-    rows: 6
-    items-per-page: 45
-    no-bosses: "&cNo boss events are currently available."
-  pagination:
-    navigation-row: 6
-    previous-page-col: 3
-    page-info-col: 5
-    next-page-col: 7
-    previous-page-item:
-      name: "&c<- Previous Page"
-      material: "PAPER"
-    next-page-item:
-      name: "&aNext Page ->"
-      material: "PAPER"
-    page-info-item:
-      material: "MAP"
-      lore:
-        - "&7Event Selection"
-    filler-item:
-      material: "BLACK_STAINED_GLASS_PANE"
-  boss-item:
-    name-format: "&6%boss_name%"
-    lore-format:
-      - "&7Cost: &e%gem_cost% Gems"
-      - "&7Level: &b%required_level%"
-      - ""
-      - "%boss_description%"
-      - ""
-      - "&e&lClick to Challenge!"
-  sounds:
-    open: "BLOCK_CHEST_OPEN"
-    close: "BLOCK_CHEST_CLOSE"
-    nav-click: "UI_BUTTON_CLICK"
-    nav-fail: "BLOCK_LEVER_CLICK"
-    item-select: "ENTITY_EXPERIENCE_ORB_PICKUP"
+      undead_knight: # Example Medium boss
+        display-name: "&8Undead Knight"
+        difficulty: "Medium" # Added difficulty field
+        mythicmob-id: "UndeadKnightBoss"
+        gui-icon: "IRON_SWORD"
+        description:
+          - "&7A relentless warrior bound"
+          - "&7by dark magic."
+          - ""
+          - "&eDifficulty: &eMedium"
+        gem-cost: 100
+        required-level: 5
+        rewards:
+          - "eco give %player% 500"
+          - "minecraft:give %player% iron_block 2"
+
+# GUI Settings (Will likely need updates for new steps)
+    gui:
+      difficulty-selection: # New section for difficulty GUI
+        title: "&1&lSelect Difficulty"
+        easy-name: "&aEasy"
+        easy-lore: ["&7Recommended for beginners."]
+        easy-material: "LIME_WOOL"
+        medium-name: "&eMedium"
+        medium-lore: ["&7A balanced challenge."]
+        medium-material: "YELLOW_WOOL"
+        hard-name: "&cHard"
+        hard-lore: ["&7Prepare for a tough fight!"]
+        hard-material: "RED_WOOL"
+        # Add more difficulties as needed (e.g., Mythic)
+      boss-selection:
+        title: "&1&lSelect Boss (%difficulty%)" # Title can now show difficulty
+        rows: 6
+        items-per-page: 45
+        no-bosses: "&cNo bosses found for this difficulty."
+      arena-selection: # New section for arena theme GUI
+        title: "&1&lSelect Arena Theme"
+        rows: 4 # Example size, adjust as needed
+        items-per-page: 27
+        no-themes: "&cNo arena themes available."
+        theme-item: # Placeholders: %theme_name%, %theme_id%
+          name-format: "&b%theme_name%"
+          lore-format:
+            - "&7Click to choose this arena."
+            - "&8ID: %theme_id%"
+          # material can be configured per theme later if needed
+      pagination:
+        navigation-row: 6 # Or adjust based on GUI size
+        previous-page-col: 3
+        page-info-col: 5
+        next-page-col: 7
+        previous-page-item: { name: "&c<- Prev", material: "PAPER" }
+        next-page-item: { name: "&aNext ->", material: "PAPER" }
+        page-info-item: { material: "MAP", lore: ["&7Page %current%/%total%"] } # Updated lore example
+        filler-item: { material: "BLACK_STAINED_GLASS_PANE" }
+      boss-item:
+        name-format: "&6%boss_name%"
+        lore-format:
+          - "&7Cost: &e%gem_cost% Gems"
+          - "&7Level: &b%required_level%"
+          - ""
+          - "%boss_description%"
+          - ""
+          - "&e&lClick to Select Boss"
+      sounds:
+        open: "BLOCK_CHEST_OPEN"
+        close: "BLOCK_CHEST_CLOSE"
+        nav-click: "UI_BUTTON_CLICK"
+        nav-fail: "BLOCK_LEVER_CLICK"
+        item-select: "ENTITY_EXPERIENCE_ORB_PICKUP"
 
 # Arena Settings
-arena-manager:
-  # Name of the dedicated world where arenas will be pasted.
-  # This world should ideally be a void world managed by a plugin like Multiverse-Core.
-  arena-world-name: "world"
-  # Starting coordinates for the first arena plot. Subsequent plots will be offset from this.
-  start-x: 0
-  start-y: 100 # Y-level for pasting schematics
-  start-z: 0
-  # Distance between arena plots to ensure separation.
-  plot-separation-x: 1000
-  plot-separation-z: 1000
-  # Maximum concurrent arenas allowed. 0 for unlimited (within server reason).
-  max-concurrent-arenas: 10
+    arena-manager:
+      arena-world-name: "BossEventArenas"
+      start-x: 0
+      start-y: 100
+      start-z: 0
+      plot-separation-x: 1000
+      plot-separation-z: 1000
+      max-concurrent-arenas: 10
 
 # Arena Themes / Schematics
-# Each theme defines a schematic file and relative spawn points within that schematic.
-# Schematics should be placed in the 'plugins/WorldEdit/schematics' or 'plugins/FastAsyncWorldEdit/schematics' folder.
-arena-themes:
-  catacombs_theme:
-    display-name: "&8The Catacombs" # For potential future display in GUIs or messages
-    schematic-file: "catacombs_arena.schem" # Filename (e.g., catacombs_arena.schem or boss_arenas/catacombs.schem)
-    # Relative spawn points from the schematic's origin (paste point)
-    # Format: "x,y,z" or "x,y,z,yaw,pitch"
-    player-spawn-points: # List of potential spawn points for the party
-      - "5,2,5,0,0"
-      - "5,2,-5,0,0"
-      - "-5,2,5,180,0"
-      - "-5,2,-5,180,0"
-    boss-spawn-point: "0,3,0,0,0" # Relative spawn point for the boss
-
-  forest_outpost_theme:
-    display-name: "&aForest Outpost"
-    schematic-file: "forest_outpost.schem"
-    player-spawn-points:
-      - "3,1,7,0,0"
-    boss-spawn-point: "0,1,0,0,0"
+    arena-themes:
+      catacombs_theme:
+        display-name: "&8The Catacombs"
+        schematic-file: "catacombs_arena.schem"
+        gui-icon: "BONE_BLOCK" # Optional icon for arena selection GUI
+        player-spawn-points: ["-43,-39,-83,0,0"] # Example relative spawn
+        boss-spawn-point: "-43,-39,-73,0,0" # Example relative spawn
+      forest_outpost_theme:
+        display-name: "&aForest Outpost"
+        schematic-file: "forest_outpost.schem"
+        gui-icon: "SPRUCE_LOG" # Optional icon for arena selection GUI
+        player-spawn-points: ["3,1,7,0,0"]
+        boss-spawn-point: "0,1,0,0,0"
 
 # Messages (Placeholder)
-# messages:
-#   no-permission: "%prefix%&cYou don't have permission."

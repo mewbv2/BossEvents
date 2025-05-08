@@ -14,7 +14,7 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitScheduler; // Import BukkitScheduler
+import org.bukkit.scheduler.BukkitScheduler;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -58,7 +58,7 @@ public class BossEventCommand implements CommandExecutor, TabCompleter {
             case "help":
                 sendHelpMessage(sender, label);
                 break;
-            case "open":
+            case "open": // Updated behavior
                 if (!(sender instanceof Player)) {
                     sender.sendMessage(configManager.getPrefix() + ChatColor.RED + "Only players can open the boss event GUI.");
                     return true;
@@ -68,7 +68,9 @@ public class BossEventCommand implements CommandExecutor, TabCompleter {
                     player.sendMessage(configManager.getPrefix() + ChatColor.RED + "You don't have permission to open the boss event menu.");
                     return true;
                 }
-                openBossSelectionGui(player);
+                // --- CHANGE: Call the first step of the new GUI flow ---
+                openDifficultySelectionGui(player);
+                // --- END CHANGE ---
                 break;
             case "reload":
                 if (!sender.hasPermission("bosseventmanager.admin.reload")) {
@@ -92,6 +94,23 @@ public class BossEventCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
+    // --- Other methods (handleAdminCommands, sendHelpMessage, etc.) remain the same ---
+    // ...
+
+    // Updated open command logic calls the new starting GUI method
+    private void openDifficultySelectionGui(Player player) {
+        if (plugin.getGuiManager() != null) {
+            plugin.getGuiManager().openDifficultySelectionGUI(player); // Call the new entry point
+        } else {
+            player.sendMessage(configManager.getPrefix() + ChatColor.YELLOW + "GUI Manager failed to load. Cannot open menu.");
+            plugin.getLogger().warning("GuiManager not initialized when trying to open difficulty selection GUI.");
+        }
+    }
+
+    // Remove or comment out the old openBossSelectionGui if it existed here
+    // private void openBossSelectionGui(Player player) { ... }
+
+    // ... (rest of the command class: handleAdminCommands, sendHelpMessage, reload, tab complete) ...
     private void handleAdminCommands(CommandSender sender, String label, String[] args) {
         String adminGroup = args[1].toLowerCase();
 
@@ -124,7 +143,7 @@ public class BossEventCommand implements CommandExecutor, TabCompleter {
                         }
                     }
                     break;
-                case "create":
+                case "create": // This command only creates the arena, does not start event
                     if (args.length < 4) {
                         sender.sendMessage(configManager.getPrefix() + ChatColor.RED + "Usage: /" + label + " admin arena create <themeId>");
                         return;
@@ -140,7 +159,7 @@ public class BossEventCommand implements CommandExecutor, TabCompleter {
                         }
                     });
                     break;
-                case "starttest":
+                case "starttest": // New command to create arena AND start a test event
                     if (args.length < 4) {
                         sender.sendMessage(configManager.getPrefix() + ChatColor.RED + "Usage: /" + label + " admin arena starttest <themeId> [playerName]");
                         return;
@@ -163,12 +182,13 @@ public class BossEventCommand implements CommandExecutor, TabCompleter {
                     final Player finalTestPlayer = testPlayer;
                     sender.sendMessage(configManager.getPrefix() + ChatColor.YELLOW + "Attempting to start test event with theme '" + themeIdToTest + "' for player " + finalTestPlayer.getName() + "...");
 
+                    // Find a dummy BossDefinition or the first available one for testing
                     BossDefinition testBossDef = plugin.getBossManager().getAllBossDefinitions().stream().findFirst().orElse(null);
                     if (testBossDef == null) {
                         sender.sendMessage(configManager.getPrefix() + ChatColor.RED + "No boss definitions found to use for the test event. Please configure bosses.");
                         return;
                     }
-                    final BossDefinition finalTestBossDef = testBossDef;
+                    final BossDefinition finalTestBossDef = testBossDef; // Make effectively final for lambda
 
                     // Request arena asynchronously
                     getArenaManager().requestArena(themeIdToTest).thenAccept(instance -> {
@@ -240,7 +260,7 @@ public class BossEventCommand implements CommandExecutor, TabCompleter {
         if (sender.hasPermission("bosseventmanager.admin.reload")) {
             sender.sendMessage(ChatColor.YELLOW + "/" + label + " reload" + ChatColor.GRAY + " - Reloads plugin configurations.");
         }
-        sendAdminHelp(sender, label);
+        sendAdminHelp(sender, label); // Call new method for admin help
     }
 
     private void sendAdminHelp(CommandSender sender, String label) {
@@ -251,15 +271,6 @@ public class BossEventCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage(ChatColor.YELLOW + "/" + label + " admin arena starttest <themeId> [player]" + ChatColor.GRAY + " - Creates arena & starts test event for player.");
             sender.sendMessage(ChatColor.YELLOW + "/" + label + " admin arena listinstances" + ChatColor.GRAY + " - Lists active arena instances.");
             sender.sendMessage(ChatColor.YELLOW + "/" + label + " admin arena cleanup <instanceId>" + ChatColor.GRAY + " - Cleans up an arena instance.");
-        }
-    }
-
-
-    private void openBossSelectionGui(Player player) {
-        if (plugin.getGuiManager() != null) {
-            plugin.getGuiManager().openBossSelectionGUI(player);
-        } else {
-            player.sendMessage(configManager.getPrefix() + ChatColor.YELLOW + "Boss selection GUI is not yet implemented or GuiManager failed to load.");
         }
     }
 
