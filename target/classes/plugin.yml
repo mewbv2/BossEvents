@@ -1,0 +1,44 @@
+name: BossEventManager
+version: 1.0-SNAPSHOT
+main: io.mewb.bossEventManager.BossEventManagerPlugin
+api-version: 1.19
+author: YourName # Replace with your name/team name
+description: A custom boss event plugin with party integration and instanced arenas.
+
+# Hard Dependencies: Your plugin will NOT load if these are missing.
+depend:
+  - Vault
+  - MythicMobs
+  - ModelEngine
+  - FastAsyncWorldEdit
+  # - PartyAndFriends # Uncomment when ready to integrate
+
+# Soft Dependencies
+softdepend: []
+
+commands:
+  bossevent:
+    description: Main command for the Boss Event Manager.
+    usage: /<command> <open/start/help/reload/admin> [args...]
+    aliases: [be, eventboss]
+    permission: bosseventmanager.command.use
+
+permissions:
+  bosseventmanager.command.use:
+    description: Allows usage of the main /bossevent command (e.g. /be help).
+    default: true
+  bosseventmanager.command.open:
+    description: Allows opening the boss event selection GUI.
+    default: true
+  bosseventmanager.admin:
+    description: Allows access to admin commands for BossEventManager.
+    default: op
+  bosseventmanager.admin.reload: # Child of bosseventmanager.admin
+    description: Allows usage of the /bossevent reload command.
+    default: op
+  bosseventmanager.admin.test: # New permission for test/debug commands
+    description: Allows usage of arena testing and debugging commands.
+    default: op
+  # bosseventmanager.event.start.<boss_id>:
+  #   description: Allows starting a specific boss event.
+  #   default: op
