@@ -2,153 +2,85 @@
 # BossEventManager Configuration                                                       #
 # ------------------------------------------------------------------------------------ #
 
-    plugin-prefix: "&8[&bBossEvents&8] &r"
-    debug-mode: false
+plugin-prefix: "&8[&bBossEvents&8] &r"
+debug-mode: false
 
-    party:
-      min-size: 2
-      max-size: 5
+party:
+  min-size: 2
+  max-size: 5
 
-    economy:
-      default-gem-cost: 100
+economy:
+  default-gem-cost: 100
 
-    bosses:
-      skeleton_king:
-        display-name: "&cSkeleton King"
-        difficulty: "Hard" # Added difficulty field
-        mythicmob-id: "SkeletonKingBoss"
-        modelengine-id: "skeleking_model"
-        gui-icon: "SKELETON_SKULL"
-        description:
-          - "&7A fearsome undead monarch."
-          - "&7Known for his legion of minions."
-          - ""
-          # Difficulty is now a separate field, but can still be in lore
-          - "&eDifficulty: &6Hard"
-        gem-cost: 150
-        required-level: 10
-        # arena-theme: "catacombs_theme" # REMOVED - Chosen by player now
-        rewards:
-          - "eco give %player% 1000"
-          - "minecraft:give %player% diamond 5"
-          - "mm i give %player% SkeletonKingSword 1"
-          - "broadcast &6%player% &eand their party have vanquished the &cSkeleton King&e!"
-        party-size-scaling:
-          health-per-member: 500.0
-          damage-multiplier-per-member: 0.05
+bosses:
+  # ... (boss definitions remain the same) ...
+  skeleton_king:
+    display-name: "&cSkeleton King"
+    difficulty: "Hard"
+    mythicmob-id: "SkeletonKingBoss"
+    modelengine-id: "skeleking_model"
+    gui-icon: "SKELETON_SKULL"
+    description: ["&7A fearsome undead monarch.", "&7Known for his legion of minions.", "", "&eDifficulty: &6Hard"]
+    gem-cost: 150
+    required-level: 10
+    rewards: ["eco give %player% 1000", "minecraft:give %player% diamond 5", "mm i give %player% SkeletonKingSword 1", "broadcast &6%player% &eand their party have vanquished the &cSkeleton King&e!"]
+    party-size-scaling: { health-per-member: 500.0, damage-multiplier-per-member: 0.05 }
+  goblin_chieftain:
+    display-name: "&2Goblin Chieftain"
+    difficulty: "Easy"
+    mythicmob-id: "GoblinChieftainBoss"
+    gui-icon: "PLAYER_HEAD"
+    description: ["&7The brutish leader...", "&7Watch out for his sneaky traps!", "", "&eDifficulty: &aEasy"]
+    gem-cost: 75
+    rewards: ["eco give %player% 250", "minecraft:give %player% iron_ingot 10", "broadcast &6%player% &eand their party have bested the &2Goblin Chieftain&e!"]
+  undead_knight:
+    display-name: "&8Undead Knight"
+    difficulty: "Medium"
+    mythicmob-id: "UndeadKnightBoss"
+    gui-icon: "IRON_SWORD"
+    description: ["&7A relentless warrior...", "&7bound by dark magic.", "", "&eDifficulty: &eMedium"]
+    gem-cost: 100
+    required-level: 5
+    rewards: ["eco give %player% 500", "minecraft:give %player% iron_block 2"]
 
-      goblin_chieftain:
-        display-name: "&2Goblin Chieftain"
-        difficulty: "Easy" # Added difficulty field
-        mythicmob-id: "GoblinChieftainBoss"
-        gui-icon: "PLAYER_HEAD"
-        description:
-          - "&7The brutish leader of the forest goblins."
-          - "&7Watch out for his sneaky traps!"
-          - ""
-          - "&eDifficulty: &aEasy"
-        gem-cost: 75
-        # required-level: 0
-        # arena-theme: "forest_outpost_theme" # REMOVED - Chosen by player now
-        rewards:
-          - "eco give %player% 250"
-          - "minecraft:give %player% iron_ingot 10"
-          - "broadcast &6%player% &eand their party have bested the &2Goblin Chieftain&e!"
-
-      undead_knight: # Example Medium boss
-        display-name: "&8Undead Knight"
-        difficulty: "Medium" # Added difficulty field
-        mythicmob-id: "UndeadKnightBoss"
-        gui-icon: "IRON_SWORD"
-        description:
-          - "&7A relentless warrior bound"
-          - "&7by dark magic."
-          - ""
-          - "&eDifficulty: &eMedium"
-        gem-cost: 100
-        required-level: 5
-        rewards:
-          - "eco give %player% 500"
-          - "minecraft:give %player% iron_block 2"
-
-# GUI Settings (Will likely need updates for new steps)
-    gui:
-      difficulty-selection: # New section for difficulty GUI
-        title: "&1&lSelect Difficulty"
-        easy-name: "&aEasy"
-        easy-lore: ["&7Recommended for beginners."]
-        easy-material: "LIME_WOOL"
-        medium-name: "&eMedium"
-        medium-lore: ["&7A balanced challenge."]
-        medium-material: "YELLOW_WOOL"
-        hard-name: "&cHard"
-        hard-lore: ["&7Prepare for a tough fight!"]
-        hard-material: "RED_WOOL"
-        # Add more difficulties as needed (e.g., Mythic)
-      boss-selection:
-        title: "&1&lSelect Boss (%difficulty%)" # Title can now show difficulty
-        rows: 6
-        items-per-page: 45
-        no-bosses: "&cNo bosses found for this difficulty."
-      arena-selection: # New section for arena theme GUI
-        title: "&1&lSelect Arena Theme"
-        rows: 4 # Example size, adjust as needed
-        items-per-page: 27
-        no-themes: "&cNo arena themes available."
-        theme-item: # Placeholders: %theme_name%, %theme_id%
-          name-format: "&b%theme_name%"
-          lore-format:
-            - "&7Click to choose this arena."
-            - "&8ID: %theme_id%"
-          # material can be configured per theme later if needed
-      pagination:
-        navigation-row: 6 # Or adjust based on GUI size
-        previous-page-col: 3
-        page-info-col: 5
-        next-page-col: 7
-        previous-page-item: { name: "&c<- Prev", material: "PAPER" }
-        next-page-item: { name: "&aNext ->", material: "PAPER" }
-        page-info-item: { material: "MAP", lore: ["&7Page %current%/%total%"] } # Updated lore example
-        filler-item: { material: "BLACK_STAINED_GLASS_PANE" }
-      boss-item:
-        name-format: "&6%boss_name%"
-        lore-format:
-          - "&7Cost: &e%gem_cost% Gems"
-          - "&7Level: &b%required_level%"
-          - ""
-          - "%boss_description%"
-          - ""
-          - "&e&lClick to Select Boss"
-      sounds:
-        open: "BLOCK_CHEST_OPEN"
-        close: "BLOCK_CHEST_CLOSE"
-        nav-click: "UI_BUTTON_CLICK"
-        nav-fail: "BLOCK_LEVER_CLICK"
-        item-select: "ENTITY_EXPERIENCE_ORB_PICKUP"
+# GUI Settings
+gui:
+  # ... (difficulty, boss, arena selection sections remain the same) ...
+  difficulty-selection: { title: "&1&lSelect Difficulty", easy-name: "&aEasy", easy-lore: ["&7Recommended..."], easy-material: "LIME_WOOL", medium-name: "&eMedium", medium-lore: ["&7A balanced..."], medium-material: "YELLOW_WOOL", hard-name: "&cHard", hard-lore: ["&7Prepare..."], hard-material: "RED_WOOL" }
+  boss-selection: { title: "&1&lSelect Boss (%difficulty%)", rows: 6, items-per-page: 45, no-bosses: "&cNo bosses found..." }
+  arena-selection: { title: "&1&lSelect Arena Theme", rows: 4, items-per-page: 27, no-themes: "&cNo arena themes...", theme-item: { name-format: "&b%theme_name%", lore-format: ["&7Click...", "&8ID: %theme_id%"] } }
+  pagination: { navigation-row: 6, previous-page-col: 3, page-info-col: 5, next-page-col: 7, previous-page-item: { name: "&c<- Prev", material: "PAPER" }, next-page-item: { name: "&aNext ->", material: "PAPER" }, page-info-item: { material: "MAP", lore: ["&7Page %current%/%total%"] }, filler-item: { material: "BLACK_STAINED_GLASS_PANE" } }
+  boss-item: { name-format: "&6%boss_name%", lore-format: ["&7Cost: &e%gem_cost% Gems", "&7Level: &b%required_level%", "", "%boss_description%", "", "&e&lClick to Select Boss"] }
+  sounds: { open: "BLOCK_CHEST_OPEN", close: "BLOCK_CHEST_CLOSE", nav-click: "UI_BUTTON_CLICK", nav-fail: "BLOCK_LEVER_CLICK", item-select: "ENTITY_EXPERIENCE_ORB_PICKUP" }
 
 # Arena Settings
-    arena-manager:
-      arena-world-name: "BossEventArenas"
-      start-x: 0
-      start-y: 100
-      start-z: 0
-      plot-separation-x: 1000
-      plot-separation-z: 1000
-      max-concurrent-arenas: 10
+arena-manager:
+  # ... (arena settings remain the same) ...
+  arena-world-name: "BossEventArenas"
+  start-x: 0
+  start-y: 100
+  start-z: 0
+  plot-separation-x: 1000
+  plot-separation-z: 1000
+  max-concurrent-arenas: 10
 
 # Arena Themes / Schematics
-    arena-themes:
-      catacombs_theme:
-        display-name: "&8The Catacombs"
-        schematic-file: "catacombs_arena.schem"
-        gui-icon: "BONE_BLOCK" # Optional icon for arena selection GUI
-        player-spawn-points: ["-43,-39,-83,0,0"] # Example relative spawn
-        boss-spawn-point: "-43,-39,-73,0,0" # Example relative spawn
-      forest_outpost_theme:
-        display-name: "&aForest Outpost"
-        schematic-file: "forest_outpost.schem"
-        gui-icon: "SPRUCE_LOG" # Optional icon for arena selection GUI
-        player-spawn-points: ["3,1,7,0,0"]
-        boss-spawn-point: "0,1,0,0,0"
+arena-themes:
+  # ... (arena themes remain the same) ...
+  catacombs_theme: { display-name: "&8The Catacombs", schematic-file: "catacombs_arena.schem", gui-icon: "BONE_BLOCK", player-spawn-points: ["-43,-39,-83,0,0"], boss-spawn-point: "-43,-39,-73,0,0" }
+  forest_outpost_theme: { display-name: "&aForest Outpost", schematic-file: "forest_outpost.schem", gui-icon: "SPRUCE_LOG", player-spawn-points: ["3,1,7,0,0"], boss-spawn-point: "0,1,0,0,0" }
 
-# Messages (Placeholder)
+# Messages
+# Placeholders: %prefix%, %min_size%, %max_size%, %cost%, %player%, %boss_name%
+messages:
+  error-prefix: "&cError: &r" # Prefix for error messages
+  party-check-fail: "%prefix%%error-prefix%Could not retrieve party information. Please try again."
+  not-in-party: "%prefix%%error-prefix%You must be in a party to start a boss event."
+  not-party-leader: "%prefix%%error-prefix%Only the party leader can start a boss event."
+  party-too-small: "%prefix%%error-prefix%Your party is too small! Minimum size: %min_size%."
+  party-too-large: "%prefix%%error-prefix%Your party is too large! Maximum size: %max_size%."
+  not-enough-gems: "%prefix%%error-prefix%You do not have enough gems! Required: %cost%."
+  economy-error: "%prefix%%error-prefix%There was an error processing the payment."
+  arena-request-failed: "%prefix%%error-prefix%Failed to prepare an arena instance. Please try again later."
+  event-starting: "%prefix%&aChecks passed! Preparing the arena for %boss_name%..."
+  # Add other messages as needed (e.g., boss defeated, event cancelled)
