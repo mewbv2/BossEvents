@@ -14,7 +14,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.milkbowl.vault.economy.Economy;
-import net.milkbowl.vault.economy.EconomyResponse; // Import EconomyResponse
+import net.milkbowl.vault.economy.EconomyResponse;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -39,9 +39,9 @@ public class GuiManager {
     private final BossEventManagerPlugin plugin;
     private final ConfigManager configManager;
     private final BossManager bossManager;
-    private ArenaManager arenaManager;
-    private PartyInfoManager partyInfoManager; // Added PartyInfoManager field
-    private Economy economy; // Added Economy field
+    private ArenaManager arenaManager; // Can be null initially
+    private PartyInfoManager partyInfoManager;
+    private Economy economy;
 
     // Common GUI settings
     private final Material fillerMaterial;
@@ -55,8 +55,7 @@ public class GuiManager {
         this.plugin = plugin;
         this.configManager = plugin.getConfigManager();
         this.bossManager = plugin.getBossManager();
-        // Get managers lazily or when needed now
-        plugin.getLogger().info("[GuiManager] Initialized.");
+        // plugin.getLogger().info("[GuiManager] Initialized."); // Standard info log, can keep or comment if too verbose
 
         // Load common settings
         this.fillerMaterial = parseMaterial(configManager.getConfig().getString("gui.pagination.filler-item.material"), Material.BLACK_STAINED_GLASS_PANE, "Filler Item");
@@ -69,170 +68,393 @@ public class GuiManager {
 
     // Helper getters with null checks
     private ArenaManager getArenaManager() {
-        if (this.arenaManager == null) this.arenaManager = plugin.getArenaManager();
+        if (this.arenaManager == null) {
+            this.arenaManager = plugin.getArenaManager();
+            if (this.arenaManager == null) {
+                plugin.getLogger().warning("[GuiManager] Attempted to access ArenaManager, but it is still null!");
+            }
+        }
         return this.arenaManager;
     }
     private PartyInfoManager getPartyInfoManager() {
-        if (this.partyInfoManager == null) this.partyInfoManager = plugin.getPartyInfoManager();
+        if (this.partyInfoManager == null) {
+            this.partyInfoManager = plugin.getPartyInfoManager();
+            if (this.partyInfoManager == null) {
+                plugin.getLogger().warning("[GuiManager] Attempted to access PartyInfoManager, but it is still null!");
+            }
+        }
         return this.partyInfoManager;
     }
     private Economy getEconomy() {
-        if (this.economy == null) this.economy = plugin.getVaultEconomy();
+        if (this.economy == null) {
+            this.economy = plugin.getVaultEconomy();
+            if (this.economy == null) {
+                plugin.getLogger().warning("[GuiManager] Attempted to access Vault Economy, but it is still null!");
+            }
+        }
         return this.economy;
     }
 
     // --- Helper Methods (parseMaterial, parseSound, createLore) remain the same ---
-    private Material parseMaterial(String materialName, Material defaultMaterial, String context) { /* ... */ return defaultMaterial; }
-    private Sound parseSound(String soundName, Sound defaultSound, String context) { /* ... */ return defaultSound; }
-    private List<Component> createLore(List<String> format, Map<String, String> placeholders) { /* ... */ return new ArrayList<>(); }
+    private Material parseMaterial(String materialName, Material defaultMaterial, String context) {
+        if (materialName == null || materialName.isEmpty()) return defaultMaterial;
+        try {
+            Material mat = Material.matchMaterial(materialName.toUpperCase());
+            return mat != null ? mat : defaultMaterial;
+        } catch (Exception e) {
+            plugin.getLogger().log(Level.WARNING, "Invalid material name '" + materialName + "' for " + context + ". Defaulting to " + defaultMaterial.name() + ".", e);
+            return defaultMaterial;
+        }
+    }
+    private Sound parseSound(String soundName, Sound defaultSound, String context) {
+        if (soundName == null || soundName.isEmpty()) return defaultSound;
+        try {
+            return Sound.valueOf(soundName.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            plugin.getLogger().log(Level.WARNING, "Invalid sound name '" + soundName + "' for " + context + ". Defaulting to " + defaultSound.name() + ".", e);
+            return defaultSound;
+        }
+    }
+    private List<Component> createLore(List<String> format, Map<String, String> placeholders) {
+        List<Component> lore = new ArrayList<>();
+        for (String line : format) {
+            String processedLine = line;
+            for (Map.Entry<String, String> entry : placeholders.entrySet()) {
+                processedLine = processedLine.replace(entry.getKey(), entry.getValue());
+            }
+            if (processedLine.contains("%boss_description%") && placeholders.containsKey("%boss_description%")) {
+                String[] descLines = placeholders.get("%boss_description%").split("\n");
+                for(int i = 0; i < descLines.length; i++) {
+                    String currentLine = (i == 0) ? processedLine.replace("%boss_description%", descLines[i]) : descLines[i];
+                    lore.add(Component.text(ChatColor.translateAlternateColorCodes('&', currentLine))
+                            .decoration(TextDecoration.ITALIC, false).color(NamedTextColor.GRAY));
+                }
+            } else {
+                lore.add(Component.text(ChatColor.translateAlternateColorCodes('&', processedLine))
+                        .decoration(TextDecoration.ITALIC, false));
+            }
+        }
+        return lore;
+    }
 
+    // --- GUI Step 1: Difficulty Selection ---
+    public void openDifficultySelectionGUI(Player player) {
+        // plugin.getLogger().info("[GuiManager DEBUG] Entering openDifficultySelectionGUI for " + player.getName());
+        String title = configManager.getColoredString("gui.difficulty-selection.title", "&1&lSelect Difficulty");
+        List<String> difficulties = new ArrayList<>(bossManager.getAvailableDifficulties()); // Use List for indexed access
+        // plugin.getLogger().info("[GuiManager DEBUG] Found difficulties: " + difficulties);
 
-    // --- GUI Steps (openDifficultySelectionGUI, createDifficultyItem, openBossSelectionGUI, createBossSelectionItem, openArenaThemeSelectionGUI, createArenaThemeItem) remain the same ---
-    public void openDifficultySelectionGUI(Player player) { /* ... */ }
-    private GuiItem createDifficultyItem(Player player, String difficulty) { /* ... */ return null; }
-    public void openBossSelectionGUI(Player player, String selectedDifficulty) { /* ... */ }
-    private GuiItem createBossSelectionItem(Player player, BossDefinition bossDef) { /* ... */ return null; }
-    public void openArenaThemeSelectionGUI(Player player, BossDefinition selectedBoss) { /* ... */ }
-    private GuiItem createArenaThemeItem(Player player, BossDefinition selectedBoss, ArenaTheme theme) { /* ... */ return null; }
+        int numDifficulties = difficulties.size();
+        int contentRowsNeeded = Math.max(1, (int) Math.ceil((double) numDifficulties / 5.0));
+        int totalRows = Math.max(3, contentRowsNeeded + 2);
 
+        Gui gui = Gui.gui().title(Component.text(title)).rows(totalRows).disableAllInteractions().create();
+        gui.setDefaultClickAction(event -> event.setCancelled(true));
 
-    // --- GUI Step 4: Final Handling (Integrate Checks) ---
+        GuiItem filler = ItemBuilder.from(fillerMaterial).name(Component.text(" ")).asGuiItem();
+        gui.getFiller().fillTop(filler);
+        gui.getFiller().fillBottom(filler);
 
-    private void handleFinalSelection(Player player, BossDefinition selectedBoss, ArenaTheme selectedTheme) {
-        player.sendMessage(configManager.getPrefix() + ChatColor.GREEN + "Selected Boss: " + selectedBoss.getDisplayName() +
-                ChatColor.GREEN + " | Arena: " + selectedTheme.getDisplayName());
-        player.sendMessage(configManager.getPrefix() + ChatColor.YELLOW + "Checking requirements...");
+        if (numDifficulties == 0) {
+            // plugin.getLogger().info("[GuiManager DEBUG] No difficulties found, adding barrier item.");
+            int centerRowForBarrier = (totalRows + 1) / 2;
+            gui.setItem(centerRowForBarrier, 5, ItemBuilder.from(Material.BARRIER).name(Component.text("&cNo difficulties found!")).asGuiItem());
+            for (int r = 2; r < totalRows; r++) {
+                for (int c = 1; c <= 9; c++) {
+                    if (gui.getGuiItem(r) == null) gui.setItem(r, c, filler);
+                }
+            }
+        } else {
+            int itemsPlaced = 0;
+            for (int r = 0; r < contentRowsNeeded; r++) {
+                int displayRow = r + 2;
+                if (displayRow >= totalRows) break;
 
-        PartyInfoManager currentPartyManager = getPartyInfoManager();
-        if (currentPartyManager == null) {
-            player.sendMessage(configManager.getMessage("party-check-fail")); // Use configured message
-            plugin.getLogger().severe("PartyInfoManager is null! Cannot perform party checks.");
+                int itemsInThisRow = 0;
+                List<String> currentRowDifficulties = new ArrayList<>();
+                for (int i = 0; i < 5 && (itemsPlaced + i) < numDifficulties; i++) {
+                    currentRowDifficulties.add(difficulties.get(itemsPlaced + i));
+                    itemsInThisRow++;
+                }
+
+                if (itemsInThisRow > 0) {
+                    int[] colsToUse;
+                    if (itemsInThisRow == 1) colsToUse = new int[]{5};
+                    else if (itemsInThisRow == 2) colsToUse = new int[]{4, 6};
+                    else if (itemsInThisRow == 3) colsToUse = new int[]{3, 5, 7};
+                    else if (itemsInThisRow == 4) colsToUse = new int[]{2, 4, 6, 8};
+                    else colsToUse = new int[]{1, 3, 5, 7, 9};
+
+                    for (int i = 0; i < itemsInThisRow; i++) {
+                        // plugin.getLogger().info("[GuiManager DEBUG] Adding item for difficulty: " + currentRowDifficulties.get(i) + " at row " + displayRow + ", col " + colsToUse[i]);
+                        gui.setItem(displayRow, colsToUse[i], createDifficultyItem(player, currentRowDifficulties.get(i)));
+                    }
+                    itemsPlaced += itemsInThisRow;
+                }
+
+                for (int c = 1; c <= 9; c++) {
+                    if (gui.getGuiItem(displayRow) == null) {
+                        gui.setItem(displayRow, c, filler);
+                    }
+                }
+            }
+        }
+
+        gui.setOpenGuiAction(event -> playSoundForPlayer(player, soundOpen, 0.5f, 1f));
+        gui.setCloseGuiAction(event -> playSoundForPlayer(player, soundClose, 0.5f, 1f));
+
+        try {
+            // plugin.getLogger().info("[GuiManager DEBUG] Attempting to open difficulty GUI for " + player.getName());
+            gui.open(player);
+            // plugin.getLogger().info("[GuiManager DEBUG] Difficulty GUI open call successful for " + player.getName());
+        } catch (Exception e) {
+            plugin.getLogger().log(Level.SEVERE, "[GuiManager] Exception opening difficulty GUI for " + player.getName(), e); // Keep as SEVERE
+        }
+    }
+
+    private GuiItem createDifficultyItem(Player player, String difficulty) {
+        String configKey = difficulty.toLowerCase();
+        String name = configManager.getColoredString("gui.difficulty-selection." + configKey + "-name", "&f" + difficulty);
+        List<String> loreFormat = configManager.getConfig().getStringList("gui.difficulty-selection." + configKey + "-lore");
+        Material material = parseMaterial(configManager.getConfig().getString("gui.difficulty-selection." + configKey + "-material"), Material.STONE, "Difficulty Item (" + difficulty + ")");
+        List<Component> lore = loreFormat.stream()
+                .map(line -> Component.text(ChatColor.translateAlternateColorCodes('&', line)).decoration(TextDecoration.ITALIC, false))
+                .collect(Collectors.toList());
+        lore.add(Component.empty());
+        lore.add(Component.text(ChatColor.GREEN + "Click to view bosses"));
+        return ItemBuilder.from(material).name(Component.text(name)).lore(lore)
+                .asGuiItem(event -> {
+                    playSoundForPlayer(player, soundItemSelect, 1f, 1.1f);
+                    openBossSelectionGUI(player, difficulty);
+                });
+    }
+
+    // --- GUI Step 2: Boss Selection (Filtered by Difficulty) ---
+    public void openBossSelectionGUI(Player player, String selectedDifficulty) {
+        String titleFormat = configManager.getColoredString("gui.boss-selection.title", "&1&lSelect Boss (%difficulty%)");
+        String title = titleFormat.replace("%difficulty%", selectedDifficulty);
+        int rows = configManager.getConfig().getInt("gui.boss-selection.rows", 6);
+        int pageSize = configManager.getConfig().getInt("gui.boss-selection.items-per-page", (rows - 1) * 9);
+        String noBossesMsg = configManager.getColoredString("gui.boss-selection.no-bosses", "&cNo bosses found for this difficulty.");
+        List<BossDefinition> bosses = bossManager.getBossesByDifficulty(selectedDifficulty);
+        PaginatedGui gui = Gui.paginated().title(Component.text(title)).rows(rows).pageSize(pageSize).disableAllInteractions().create();
+        gui.setDefaultClickAction(event -> event.setCancelled(true));
+        if (bosses.isEmpty()) {
+            gui.setItem(rows / 2, 5, ItemBuilder.from(Material.BARRIER).name(Component.text(noBossesMsg)).asGuiItem());
+        } else {
+            for (BossDefinition bossDef : bosses) {
+                gui.addItem(createBossSelectionItem(player, bossDef));
+            }
+        }
+        int navRow = Math.max(1, Math.min(configManager.getConfig().getInt("gui.pagination.navigation-row", rows), rows));
+        addPaginationControls(gui, rows, navRow);
+        gui.setItem(navRow, 1, ItemBuilder.from(Material.ARROW).name(Component.text(ChatColor.RED + "<- Back to Difficulties")).asGuiItem(event -> {
+            playSoundForPlayer(player, soundNavClick, 1f, 0.9f);
+            openDifficultySelectionGUI(player);
+        }));
+        GuiItem filler = ItemBuilder.from(fillerMaterial).name(Component.text(" ")).asGuiItem();
+        for (int col = 1; col <= 9; col++) {
+            if (gui.getGuiItem(navRow) == null) {
+                gui.setItem(navRow, col, filler);
+            }
+        }
+        gui.setOpenGuiAction(event -> playSoundForPlayer(player, soundOpen, 0.5f, 1f));
+        gui.setCloseGuiAction(event -> playSoundForPlayer(player, soundClose, 0.5f, 1f));
+        gui.open(player);
+    }
+    private GuiItem createBossSelectionItem(Player player, BossDefinition bossDef) {
+        String nameFormat = configManager.getConfig().getString("gui.boss-item.name-format", "&6%boss_name%");
+        List<String> loreFormat = configManager.getConfig().getStringList("gui.boss-item.lore-format");
+        Material iconMaterial = parseMaterial(configManager.getConfig().getString("bosses." + bossDef.getId() + ".gui-icon"), Material.PLAYER_HEAD, "Boss Icon (" + bossDef.getId() + ")");
+        String processedName = ChatColor.translateAlternateColorCodes('&', nameFormat.replace("%boss_name%", bossDef.getDisplayName()));
+        Map<String, String> placeholders = new HashMap<>();
+        placeholders.put("%boss_name%", bossDef.getDisplayName());
+        placeholders.put("%gem_cost%", String.valueOf(bossDef.getGemCost()));
+        placeholders.put("%required_level%", bossDef.getRequiredLevel() > 0 ? String.valueOf(bossDef.getRequiredLevel()) : "None");
+        placeholders.put("%boss_description%", bossDef.getDescription().stream().collect(Collectors.joining("\n")));
+        List<Component> processedLore = createLore(loreFormat, placeholders);
+        return ItemBuilder.from(iconMaterial).name(Component.text(processedName)).lore(processedLore)
+                .asGuiItem(event -> {
+                    playSoundForPlayer(player, soundItemSelect, 1f, 1.2f);
+                    openArenaThemeSelectionGUI(player, bossDef);
+                });
+    }
+
+    // --- GUI Step 3: Arena Theme Selection ---
+    public void openArenaThemeSelectionGUI(Player player, BossDefinition selectedBoss) {
+        // plugin.getLogger().info("[GuiManager] Attempting to open Arena Theme Selection GUI for player " + player.getName()); // Commented out debug
+        ArenaManager currentArenaManager = getArenaManager();
+        if (currentArenaManager == null) {
+            player.sendMessage(ChatColor.RED + "Error: Arena Manager is not available. Cannot select arena.");
+            plugin.getLogger().severe("ArenaManager is null when trying to open Arena Theme Selection GUI!");
             return;
         }
 
-        // 1. Request Party Info (Asynchronous)
+        String title = configManager.getColoredString("gui.arena-selection.title", "&1&lSelect Arena Theme");
+        int rows = configManager.getConfig().getInt("gui.arena-selection.rows", 4);
+        int pageSize = configManager.getConfig().getInt("gui.arena-selection.items-per-page", (rows - 1) * 9);
+        String noThemesMsg = configManager.getColoredString("gui.arena-selection.no-themes", "&cNo arena themes available.");
+
+        Collection<ArenaTheme> themes = currentArenaManager.getAllArenaThemes();
+
+        PaginatedGui gui = Gui.paginated().title(Component.text(title)).rows(rows).pageSize(pageSize).disableAllInteractions().create();
+        gui.setDefaultClickAction(event -> event.setCancelled(true));
+        if (themes.isEmpty()) {
+            gui.setItem(rows / 2, 5, ItemBuilder.from(Material.BARRIER).name(Component.text(noThemesMsg)).asGuiItem());
+        } else {
+            for (ArenaTheme theme : themes) {
+                gui.addItem(createArenaThemeItem(player, selectedBoss, theme));
+            }
+        }
+        int navRow = Math.max(1, Math.min(configManager.getConfig().getInt("gui.pagination.navigation-row", rows), rows));
+        addPaginationControls(gui, rows, navRow);
+        gui.setItem(navRow, 1, ItemBuilder.from(Material.ARROW).name(Component.text(ChatColor.RED + "<- Back to Bosses")).asGuiItem(event -> {
+            playSoundForPlayer(player, soundNavClick, 1f, 0.9f);
+            openBossSelectionGUI(player, selectedBoss.getDifficulty());
+        }));
+        GuiItem filler = ItemBuilder.from(fillerMaterial).name(Component.text(" ")).asGuiItem();
+        for (int col = 1; col <= 9; col++) {
+            if (gui.getGuiItem(navRow) == null) {
+                gui.setItem(navRow, col, filler);
+            }
+        }
+
+        gui.setOpenGuiAction(event -> playSoundForPlayer(player, soundOpen, 0.5f, 1f));
+        gui.setCloseGuiAction(event -> playSoundForPlayer(player, soundClose, 0.5f, 1f));
+        gui.open(player);
+    }
+    private GuiItem createArenaThemeItem(Player player, BossDefinition selectedBoss, ArenaTheme theme) {
+        String nameFormat = configManager.getConfig().getString("gui.arena-selection.theme-item.name-format", "&b%theme_name%");
+        List<String> loreFormat = configManager.getConfig().getStringList("gui.arena-selection.theme-item.lore-format");
+        Material iconMaterial = parseMaterial(configManager.getConfig().getString("arena-themes." + theme.getId() + ".gui-icon"), Material.GRASS_BLOCK, "Arena Theme Icon (" + theme.getId() + ")");
+        String processedName = ChatColor.translateAlternateColorCodes('&', nameFormat.replace("%theme_name%", theme.getDisplayName()).replace("%theme_id%", theme.getId()));
+        Map<String, String> placeholders = new HashMap<>();
+        placeholders.put("%theme_name%", theme.getDisplayName());
+        placeholders.put("%theme_id%", theme.getId());
+        List<Component> processedLore = createLore(loreFormat, placeholders);
+        return ItemBuilder.from(iconMaterial).name(Component.text(processedName)).lore(processedLore)
+                .asGuiItem(event -> {
+                    playSoundForPlayer(player, soundItemSelect, 1f, 1.3f);
+                    player.closeInventory();
+                    handleFinalSelection(player, selectedBoss, theme);
+                });
+    }
+
+    // --- GUI Step 4: Final Handling (Initiate Checks & Event) ---
+    private void handleFinalSelection(Player player, BossDefinition selectedBoss, ArenaTheme selectedTheme) {
+        player.sendMessage(configManager.getPrefix() + ChatColor.GREEN + "Selected Boss: " + selectedBoss.getDisplayName() +
+                ChatColor.GREEN + " | Arena: " + selectedTheme.getDisplayName());
+        player.sendMessage(configManager.getPrefix() + ChatColor.YELLOW + "Initiating pre-flight checks (Party, Economy)...");
+
+        PartyInfoManager currentPartyManager = getPartyInfoManager();
+        if (currentPartyManager == null) { player.sendMessage(configManager.getMessage("party-check-fail")); plugin.getLogger().severe("PartyInfoManager is null!"); return; }
+
         currentPartyManager.requestPartyInfo(player).whenComplete((partyInfo, throwable) -> {
-            // Ensure subsequent checks run on the main thread
             Bukkit.getScheduler().runTask(plugin, () -> {
+                if (throwable != null) { player.sendMessage(configManager.getMessage("party-check-fail")); plugin.getLogger().log(Level.WARNING, "Party info request failed for " + player.getName(), throwable); return; }
+                if (partyInfo == null || !partyInfo.isSuccess()) { player.sendMessage(configManager.getMessage("party-check-fail")); plugin.getLogger().warning("Party info request unsuccessful for " + player.getName()); return; }
 
-                // Handle errors from the future itself
-                if (throwable != null) {
-                    player.sendMessage(configManager.getMessage("party-check-fail"));
-                    plugin.getLogger().log(Level.WARNING, "Party info request failed for " + player.getName(), throwable);
-                    return;
-                }
-                // Handle failure reported by the Bungee extension (e.g., timeout, player not found by PAF)
-                if (partyInfo == null || !partyInfo.isSuccess()) {
-                    player.sendMessage(configManager.getMessage("party-check-fail"));
-                    plugin.getLogger().warning("Party info request unsuccessful for " + player.getName() + " (Response success=" + (partyInfo != null && partyInfo.isSuccess()) + ")");
-                    return;
-                }
+                if (!partyInfo.isInParty()) { player.sendMessage(configManager.getMessage("not-in-party")); return; }
+                if (!partyInfo.isLeader()) { player.sendMessage(configManager.getMessage("not-party-leader")); return; }
+                int minSize = configManager.getMinPartySize(); int maxSize = configManager.getMaxPartySize();
+                if (partyInfo.getPartySize() < minSize) { Map<String, String> r = new HashMap<>(); r.put("%min_size%", String.valueOf(minSize)); player.sendMessage(configManager.getMessage("party-too-small", r)); return; }
+                if (partyInfo.getPartySize() > maxSize) { Map<String, String> r = new HashMap<>(); r.put("%max_size%", String.valueOf(maxSize)); player.sendMessage(configManager.getMessage("party-too-large", r)); return; }
 
-                // 2. Perform Party Checks (Synchronous - we have the info now)
-                if (!partyInfo.isInParty()) {
-                    player.sendMessage(configManager.getMessage("not-in-party"));
-                    return;
-                }
-                if (!partyInfo.isLeader()) {
-                    player.sendMessage(configManager.getMessage("not-party-leader"));
-                    return;
-                }
-                int minSize = configManager.getMinPartySize();
-                int maxSize = configManager.getMaxPartySize();
-                if (partyInfo.getPartySize() < minSize) {
-                    Map<String, String> replacements = new HashMap<>();
-                    replacements.put("%min_size%", String.valueOf(minSize));
-                    player.sendMessage(configManager.getMessage("party-too-small", replacements));
-                    return;
-                }
-                if (partyInfo.getPartySize() > maxSize) {
-                    Map<String, String> replacements = new HashMap<>();
-                    replacements.put("%max_size%", String.valueOf(maxSize));
-                    player.sendMessage(configManager.getMessage("party-too-large", replacements));
-                    return;
-                }
-
-                // Party checks passed! Proceed to economy checks.
                 player.sendMessage(configManager.getPrefix() + ChatColor.AQUA + "Party checks passed. Checking economy...");
-
-                // 3. Perform Economy Checks (Synchronous)
                 Economy currentEconomy = getEconomy();
-                if (currentEconomy == null) {
-                    player.sendMessage(configManager.getMessage("economy-error"));
-                    plugin.getLogger().severe("Vault Economy provider is null! Cannot perform transaction.");
-                    return;
-                }
+                if (currentEconomy == null) { player.sendMessage(configManager.getMessage("economy-error")); plugin.getLogger().severe("Vault Economy provider is null!"); return; }
                 double cost = selectedBoss.getGemCost();
-                if (!currentEconomy.has(player, cost)) {
-                    Map<String, String> replacements = new HashMap<>();
-                    replacements.put("%cost%", String.valueOf(cost));
-                    player.sendMessage(configManager.getMessage("not-enough-gems", replacements));
-                    return;
-                }
+                if (!currentEconomy.has(player, cost)) { Map<String, String> r = new HashMap<>(); r.put("%cost%", String.valueOf(cost)); player.sendMessage(configManager.getMessage("not-enough-gems", r)); return; }
 
-                // Attempt to withdraw funds
                 EconomyResponse response = currentEconomy.withdrawPlayer(player, cost);
-                if (!response.transactionSuccess()) {
-                    player.sendMessage(configManager.getMessage("economy-error"));
-                    plugin.getLogger().warning("Vault withdrawal failed for " + player.getName() + " (Cost: " + cost + "). Reason: " + response.errorMessage);
-                    return;
-                }
+                if (!response.transactionSuccess()) { player.sendMessage(configManager.getMessage("economy-error")); plugin.getLogger().warning("Vault withdrawal failed for " + player.getName() + ": " + response.errorMessage); return; }
 
-                // Economy checks passed! Proceed to arena request.
                 player.sendMessage(configManager.getMessage("event-starting", Collections.singletonMap("%boss_name%", selectedBoss.getDisplayName())));
-
-                // 4. Request Arena (Asynchronous)
                 ArenaManager currentArenaManager = getArenaManager();
-                if (currentArenaManager == null) {
-                    player.sendMessage(configManager.getPrefix() + ChatColor.RED + "Critical Error: Arena Manager became unavailable!");
-                    // Attempt to refund player
-                    currentEconomy.depositPlayer(player, cost);
-                    return;
-                }
+                if (currentArenaManager == null) { player.sendMessage(configManager.getPrefix() + ChatColor.RED + "Critical Error: Arena Manager became unavailable!"); currentEconomy.depositPlayer(player, cost); return; }
 
                 currentArenaManager.requestArena(selectedTheme.getId()).whenComplete((arenaInstance, arenaThrowable) -> {
-                    // Ensure response handling is on main thread
                     Bukkit.getScheduler().runTask(plugin, () -> {
                         if (arenaThrowable != null || arenaInstance == null) {
-                            player.sendMessage(configManager.getMessage("arena-request-failed"));
-                            plugin.getLogger().log(Level.SEVERE, "Arena request failed for player " + player.getName(), arenaThrowable);
-                            // Attempt to refund player
-                            currentEconomy.depositPlayer(player, cost);
+                            player.sendMessage(configManager.getMessage("arena-request-failed")); plugin.getLogger().log(Level.SEVERE, "Arena request failed for player " + player.getName(), arenaThrowable);
+                            currentEconomy.depositPlayer(player, cost); // Refund
                         } else {
-                            // Arena ready! Start the event
                             player.sendMessage(configManager.getPrefix() + ChatColor.GREEN + "Arena ready! Starting event...");
-
-                            // Get online players from the party UUIDs
                             List<Player> onlinePartyMembers = new ArrayList<>();
-                            for (UUID memberUUID : partyInfo.getMemberUUIDs()) {
-                                Player member = Bukkit.getPlayer(memberUUID);
-                                // Ensure player is online AND on the same server where BossEventManager is running
-                                if (member != null && member.isOnline()) {
-                                    onlinePartyMembers.add(member);
-                                }
-                            }
-
+                            for (UUID memberUUID : partyInfo.getMemberUUIDs()) { Player member = Bukkit.getPlayer(memberUUID); if (member != null && member.isOnline()) { onlinePartyMembers.add(member); } }
                             if (onlinePartyMembers.isEmpty()) {
-                                plugin.getLogger().warning("No online party members found on this server for arena " + arenaInstance.getInstanceId() + ". Aborting event start and cleaning up.");
-                                player.sendMessage(configManager.getPrefix() + ChatColor.RED + "Could not find any online party members on this server to start the event.");
-                                currentArenaManager.endEvent(arenaInstance); // Clean up the unused arena
-                                currentEconomy.depositPlayer(player, cost); // Refund
-                            } else {
-                                // Start the event with the online members
-                                currentArenaManager.startEvent(arenaInstance, onlinePartyMembers, selectedBoss);
-                            }
+                                plugin.getLogger().warning("No online party members found on this server for arena " + arenaInstance.getInstanceId() + ".");
+                                player.sendMessage(configManager.getPrefix() + ChatColor.RED + "Could not find online party members.");
+                                currentArenaManager.endEvent(arenaInstance); currentEconomy.depositPlayer(player, cost);
+                            } else { currentArenaManager.startEvent(arenaInstance, onlinePartyMembers, selectedBoss); }
                         }
                     });
                 });
-            }); // End of runTask for synchronous checks
-        }); // End of whenComplete for party info request
+            });
+        });
     }
 
 
     // --- Helper for Pagination Controls ---
-    private void addPaginationControls(PaginatedGui gui, int totalRows, int navRow) { /* ... */ }
-    private void updatePaginationControls(PaginatedGui gui, int navRow, int prevCol, int infoCol, int nextCol) { /* ... */ }
-    private void updatePageInfoItem(PaginatedGui gui, int row, int col) { /* ... */ }
-    private void playSoundForPlayer(HumanEntity player, Sound sound, float volume, float pitch) { /* ... */ }
+    private void addPaginationControls(PaginatedGui gui, int totalRows, int navRow) {
+        int prevCol = configManager.getConfig().getInt("gui.pagination.previous-page-col", 3);
+        int infoCol = configManager.getConfig().getInt("gui.pagination.page-info-col", 5);
+        int nextCol = configManager.getConfig().getInt("gui.pagination.next-page-col", 7);
+        String prevName = configManager.getColoredString("gui.pagination.previous-page-item.name", "&c<- Prev");
+        Material prevMat = parseMaterial(configManager.getConfig().getString("gui.pagination.previous-page-item.material"), Material.PAPER, "Prev Page Item");
+        String nextName = configManager.getColoredString("gui.pagination.next-page-item.name", "&aNext ->");
+        Material nextMat = parseMaterial(configManager.getConfig().getString("gui.pagination.next-page-item.material"), Material.PAPER, "Next Page Item");
+
+        if (prevCol < 1 || prevCol > 9 || infoCol < 1 || infoCol > 9 || nextCol < 1 || nextCol > 9) { plugin.getLogger().warning("Invalid column configuration for pagination controls."); return; }
+
+        gui.setItem(navRow, prevCol, ItemBuilder.from(prevMat).name(Component.text(prevName)).glow(gui.getCurrentPageNum() > 1)
+                .asGuiItem(event -> {
+                    event.setCancelled(true);
+                    if (gui.previous()) {
+                        playSoundForPlayer(event.getWhoClicked(), soundNavClick, 1f, 1f);
+                        updatePaginationControls(gui, navRow, prevCol, infoCol, nextCol);
+                    } else { playSoundForPlayer(event.getWhoClicked(), soundNavFail, 1f, 0.8f); }
+                }));
+        updatePageInfoItem(gui, navRow, infoCol);
+        gui.setItem(navRow, nextCol, ItemBuilder.from(nextMat).name(Component.text(nextName)).glow(gui.getCurrentPageNum() < gui.getPagesNum())
+                .asGuiItem(event -> {
+                    event.setCancelled(true);
+                    if (gui.next()) {
+                        playSoundForPlayer(event.getWhoClicked(), soundNavClick, 1f, 1f);
+                        updatePaginationControls(gui, navRow, prevCol, infoCol, nextCol);
+                    } else { playSoundForPlayer(event.getWhoClicked(), soundNavFail, 1f, 0.8f); }
+                }));
+    }
+    private void updatePaginationControls(PaginatedGui gui, int navRow, int prevCol, int infoCol, int nextCol) {
+        updatePageInfoItem(gui, navRow, infoCol);
+        GuiItem prevItem = gui.getGuiItem(navRow);
+        if (prevItem != null) {
+            String prevName = configManager.getColoredString("gui.pagination.previous-page-item.name", "&c<- Prev");
+            Material prevMat = parseMaterial(configManager.getConfig().getString("gui.pagination.previous-page-item.material"), Material.PAPER, "Prev Page Item");
+            prevItem = ItemBuilder.from(prevMat).name(Component.text(prevName)).glow(gui.getCurrentPageNum() > 1).asGuiItem();
+            gui.updateItem(navRow, prevCol, prevItem);
+        }
+        GuiItem nextItem = gui.getGuiItem(navRow);
+        if (nextItem != null) {
+            String nextName = configManager.getColoredString("gui.pagination.next-page-item.name", "&aNext ->");
+            Material nextMat = parseMaterial(configManager.getConfig().getString("gui.pagination.next-page-item.material"), Material.PAPER, "Next Page Item");
+            nextItem = ItemBuilder.from(nextMat).name(Component.text(nextName)).glow(gui.getCurrentPageNum() < gui.getPagesNum()).asGuiItem();
+            gui.updateItem(navRow, nextCol, nextItem);
+        }
+    }
+    private void updatePageInfoItem(PaginatedGui gui, int row, int col) {
+        Material infoMat = parseMaterial(configManager.getConfig().getString("gui.pagination.page-info-item.material"), Material.MAP, "Page Info Item");
+        List<String> infoLoreFormat = configManager.getConfig().getStringList("gui.pagination.page-info-item.lore");
+        String currentPage = String.valueOf(gui.getCurrentPageNum());
+        String totalPages = String.valueOf(Math.max(1, gui.getPagesNum()));
+        Map<String, String> placeholders = new HashMap<>();
+        placeholders.put("%current%", currentPage); placeholders.put("%total%", totalPages);
+        List<Component> lore = createLore(infoLoreFormat, placeholders);
+        GuiItem pageInfoItem = ItemBuilder.from(infoMat).name(Component.text(ChatColor.YELLOW + "Page " + currentPage + "/" + totalPages)).lore(lore).asGuiItem(event -> event.setCancelled(true));
+        gui.setItem(row, col, pageInfoItem);
+    }
+    private void playSoundForPlayer(HumanEntity player, Sound sound, float volume, float pitch) {
+        if (player instanceof Player) { ((Player) player).playSound(player.getLocation(), sound, volume, pitch); }
+    }
 
 }

@@ -17,14 +17,14 @@ public class ArenaInstance {
         AVAILABLE, PREPARING, IN_USE, CLEANING_UP, UNLOADING
     }
 
-    private static final Logger log = Bukkit.getLogger();
+    private static final Logger log = Bukkit.getLogger(); // Keep for potential non-debug logs
 
     private final UUID instanceId;
     private final ArenaTheme arenaTheme;
     private final Location plotOrigin;
     private List<UUID> partyMemberUUIDs;
     private BossDefinition currentBoss;
-    private UUID bossEntityUUID; // Added field to store the spawned boss entity's UUID
+    private UUID bossEntityUUID;
     private ArenaState state;
     private long creationTime;
     private long lastActivityTime;
@@ -37,7 +37,7 @@ public class ArenaInstance {
         this.state = ArenaState.AVAILABLE;
         this.creationTime = System.currentTimeMillis();
         this.lastActivityTime = this.creationTime;
-        this.bossEntityUUID = null; // Initialize as null
+        this.bossEntityUUID = null;
     }
 
     // --- Getters ---
@@ -46,7 +46,7 @@ public class ArenaInstance {
     public Location getPlotOrigin() { return plotOrigin; }
     public List<UUID> getPartyMemberUUIDs() { return partyMemberUUIDs; }
     public BossDefinition getCurrentBoss() { return currentBoss; }
-    public UUID getBossEntityUUID() { return bossEntityUUID; } // Getter for boss UUID
+    public UUID getBossEntityUUID() { return bossEntityUUID; }
     public ArenaState getState() { return state; }
     public long getCreationTime() { return creationTime; }
     public long getLastActivityTime() { return lastActivityTime; }
@@ -61,11 +61,10 @@ public class ArenaInstance {
         updateLastActivity();
     }
     public void setCurrentBoss(BossDefinition bossDefinition) { this.currentBoss = bossDefinition; updateLastActivity(); }
-    public void setBossEntityUUID(UUID bossEntityUUID) { this.bossEntityUUID = bossEntityUUID; } // Setter for boss UUID
+    public void setBossEntityUUID(UUID bossEntityUUID) { this.bossEntityUUID = bossEntityUUID; }
     public void setState(ArenaState state) {
         this.state = state;
         updateLastActivity();
-        // Clear boss UUID when cleaning up
         if (state == ArenaState.CLEANING_UP || state == ArenaState.UNLOADING) {
             this.bossEntityUUID = null;
         }
@@ -76,35 +75,40 @@ public class ArenaInstance {
 
     public Location getPlayerSpawnLocation(int playerIndex, int partySize) {
         if (arenaTheme == null || plotOrigin == null) {
-            log.warning("[BossEventManager] Cannot get player spawn: ArenaTheme or PlotOrigin is null for instance " + instanceId);
+            // log.warning("[BossEventManager] Cannot get player spawn: ArenaTheme or PlotOrigin is null for instance " + instanceId); // Keep as warning
             return null;
         }
         ArenaLocation relativeSpawn = arenaTheme.getPlayerSpawnPoint(playerIndex, partySize);
         if (relativeSpawn == null) {
-            log.warning("[BossEventManager] Cannot get player spawn: No valid relative spawn found for player index " + playerIndex + " in theme " + arenaTheme.getId());
+            // log.warning("[BossEventManager] Cannot get player spawn: No valid relative spawn found for player index " + playerIndex + " in theme " + arenaTheme.getId()); // Keep as warning
             return null;
         }
+
         Location finalLocation = relativeSpawn.toBukkitLocation(plotOrigin, plotOrigin.getWorld().getName());
-        // Debug Logging (Optional - can be removed or put behind config flag)
+
+        // Debug Logging (Commented out)
         // log.info("[BossEventManager DEBUG] Player Spawn Calc for Instance " + instanceId + ":");
         // log.info("  - Plot Origin: " + locationToString(plotOrigin));
         // log.info("  - Relative Spawn (Index " + playerIndex + "): " + relativeSpawn.toString());
         // log.info("  - Calculated Final Location: " + locationToString(finalLocation));
+
         return finalLocation;
     }
 
     public Location getBossSpawnLocation() {
         if (arenaTheme == null || plotOrigin == null || arenaTheme.getBossSpawnPoint() == null) {
-            log.warning("[BossEventManager] Cannot get boss spawn: ArenaTheme, PlotOrigin, or relative boss spawn is null for instance " + instanceId);
+            // log.warning("[BossEventManager] Cannot get boss spawn: ArenaTheme, PlotOrigin, or relative boss spawn is null for instance " + instanceId); // Keep as warning
             return null;
         }
         ArenaLocation relativeSpawn = arenaTheme.getBossSpawnPoint();
         Location finalLocation = relativeSpawn.toBukkitLocation(plotOrigin, plotOrigin.getWorld().getName());
-        // Debug Logging (Optional)
+
+        // Debug Logging (Commented out)
         // log.info("[BossEventManager DEBUG] Boss Spawn Calc for Instance " + instanceId + ":");
         // log.info("  - Plot Origin: " + locationToString(plotOrigin));
         // log.info("  - Relative Spawn: " + relativeSpawn.toString());
         // log.info("  - Calculated Final Location: " + locationToString(finalLocation));
+
         return finalLocation;
     }
 
@@ -134,7 +138,7 @@ public class ArenaInstance {
                 ", origin=" + locationToString(plotOrigin) +
                 ", state=" + state +
                 ", partySize=" + (partyMemberUUIDs != null ? partyMemberUUIDs.size() : 0) +
-                ", bossUUID=" + bossEntityUUID + // Added boss UUID to toString
+                ", bossUUID=" + bossEntityUUID +
                 '}';
     }
 }
