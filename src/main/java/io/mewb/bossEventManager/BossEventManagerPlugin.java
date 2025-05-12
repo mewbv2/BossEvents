@@ -1,21 +1,11 @@
 package io.mewb.bossEventManager;
 
-import com.sk89q.worldedit.EditSession;
 import com.sk89q.worldedit.WorldEdit;
-import com.sk89q.worldedit.WorldEditException;
-import com.sk89q.worldedit.bukkit.BukkitAdapter;
-import com.sk89q.worldedit.extent.clipboard.Clipboard;
-import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormat;
-import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormats;
-import com.sk89q.worldedit.extent.clipboard.io.ClipboardReader;
-import com.sk89q.worldedit.function.operation.Operation;
-import com.sk89q.worldedit.function.operation.Operations;
-import com.sk89q.worldedit.math.BlockVector3;
-import com.sk89q.worldedit.session.ClipboardHolder;
 
 
 import io.mewb.bossEventManager.commands.BossEventCommand;
 import io.mewb.bossEventManager.listeners.BossDeathListener;
+import io.mewb.bossEventManager.listeners.PlayerArenaDeathListener;
 import io.mewb.bossEventManager.listeners.SpigotPluginMessageListener;
 import io.mewb.bossEventManager.managers.ArenaManager;
 import io.mewb.bossEventManager.managers.BossManager;
@@ -24,10 +14,11 @@ import io.mewb.bossEventManager.managers.GuiManager;
 import io.mewb.bossEventManager.party.PartyInfoManager;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.plugin.PluginManager; // Import PluginManager
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.plugin.messaging.PluginMessageListener; // Bukkit PluginMessageListener
 
 import io.lumine.mythic.api.MythicProvider;
 import io.lumine.mythic.api.MythicPlugin;
@@ -36,6 +27,7 @@ import com.ticxo.modelengine.api.ModelEngineAPI;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.Collection; // Import Collection
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -44,22 +36,18 @@ public class BossEventManagerPlugin extends JavaPlugin {
     private static BossEventManagerPlugin instance;
     private static final Logger log = Logger.getLogger("Minecraft");
 
-    // Channel for BungeeCord communication
-    public static final String BUNGEE_CHANNEL = "bossevent:party"; // Must match Bungee extension
+    public static final String BUNGEE_CHANNEL = "bossevent:party";
 
-    // API Hooks
     private Economy vaultEconomy = null;
     private MythicPlugin mythicMobsApi = null;
     private ModelEngineAPI modelEngineApi = null;
     private WorldEdit faweApi = null;
 
-    // Managers
     private ConfigManager configManager;
     private BossManager bossManager;
     private GuiManager guiManager;
-    private ArenaManager arenaManager; // Initialized later now
-    private PartyInfoManager partyInfoManager; // Manager to handle party info requests/responses
-    // private PartyIntegrationManager partyIntegrationManager; // This might be replaced/merged with PartyInfoManager
+    private ArenaManager arenaManager;
+    private PartyInfoManager partyInfoManager;
 
 
     @Override
@@ -71,43 +59,34 @@ public class BossEventManagerPlugin extends JavaPlugin {
         log.info("Author: " + this.getDescription().getAuthors().toString());
         log.info("--------------------------------------");
 
-        // 1. Load Configuration FIRST
         configManager = new ConfigManager(this);
 
-        // 2. Setup Dependencies (API Hooks)
-        if (!setupEconomy()) { log.severe("Vault not found or no Economy provider! Disabling BossEventManager."); getServer().getPluginManager().disablePlugin(this); return; }
-        log.info("Successfully hooked into Vault!");
+        if (!setupEconomy()) { log.severe("Vault/Economy setup failed! Disabling BossEventManager."); getServer().getPluginManager().disablePlugin(this); return; }
+        // Success message is now inside setupEconomy
         if (!setupMythicMobs()) { log.severe("MythicMobs not found! Boss functionality will be severely limited."); } else { log.info("Successfully hooked into MythicMobs!"); }
         if (!setupModelEngine()) { log.severe("ModelEngine not found or API could not be hooked! Custom models will not work."); } else { log.info("Successfully hooked into ModelEngine!"); }
         if (!setupFAWE()) { log.severe("FastAsyncWorldEdit (FAWE) not found or API could not be hooked! Arena creation will fail."); } else { log.info("Successfully hooked into FastAsyncWorldEdit (FAWE)!"); }
-        if (!setupPartyAndFriends()) { log.warning("Party & Friends not found! Party features will be disabled."); } else { log.info("Successfully hooked into Party & Friends!"); }
+        // setupPartyAndFriends() is now just a placeholder, real check is Bungee-side
+        setupPartyAndFriends();
 
 
-        // 3. Initialize Core Managers (that don't depend on ArenaManager)
         bossManager = new BossManager(this);
-        partyInfoManager = new PartyInfoManager(this); // Initialize PartyInfoManager
-        guiManager = new GuiManager(this); // GuiManager needs PartyInfoManager now
+        partyInfoManager = new PartyInfoManager(this);
+        guiManager = new GuiManager(this);
 
-
-        // 4. Schedule ArenaManager Initialization (Delay: 20 ticks)
-        // This gives world managers (like Multiverse) time to load worlds.
         log.info("Scheduling ArenaManager initialization (Delay: 20 ticks)...");
-        Bukkit.getScheduler().runTaskLater(this, () -> { // << Increased delay to 20L (1 second)
+        Bukkit.getScheduler().runTaskLater(this, () -> {
             log.info("Attempting to initialize ArenaManager...");
-            // Re-check conditions just in case something went wrong between enable and now
             String worldName = configManager.getConfig().getString("arena-manager.arena-world-name", "BossEventArenas");
             if (faweApi != null && Bukkit.getWorld(worldName) != null) {
-                arenaManager = new ArenaManager(this); // ArenaManager is initialized here (potentially null)
+                arenaManager = new ArenaManager(this);
                 log.info("ArenaManager initialized successfully!");
-                // Register listeners that depend on ArenaManager *after* it's initialized
                 registerListeners();
             } else {
                 log.severe("ArenaManager could NOT be initialized (FAWE Hook: " + (faweApi != null) + ", World '" + worldName + "' Loaded: " + (Bukkit.getWorld(worldName) != null) + "). Arena features disabled.");
             }
-        }, 20L); // Increased delay to 20 ticks (1 second)
+        }, 20L);
 
-
-        // 5. Register Commands (Can be done immediately)
         BossEventCommand bossEventCommandExecutor = new BossEventCommand(this);
         PluginCommand bossEventPluginCommand = getCommand("bossevent");
         if (bossEventPluginCommand != null) {
@@ -118,14 +97,9 @@ public class BossEventManagerPlugin extends JavaPlugin {
             log.severe("Could not register '/bossevent' command! Check plugin.yml.");
         }
 
-        // 6. Register Plugin Messaging Channel
         this.getServer().getMessenger().registerOutgoingPluginChannel(this, BUNGEE_CHANNEL);
         this.getServer().getMessenger().registerIncomingPluginChannel(this, BUNGEE_CHANNEL, new SpigotPluginMessageListener(this));
         log.info("Registered BungeeCord plugin message channel: " + BUNGEE_CHANNEL);
-
-
-        // 7. Register Listeners (Moved)
-        // Listeners that depend on ArenaManager are registered in the scheduled task inside registerListeners()
 
         log.info(this.getDescription().getName() + " enable sequence initiated.");
         if (configManager.isDebugMode()) {
@@ -133,15 +107,15 @@ public class BossEventManagerPlugin extends JavaPlugin {
         }
     }
 
-    // Separate method for registering listeners, called after ArenaManager is confirmed loaded
     private void registerListeners() {
-        if (arenaManager != null && mythicMobsApi != null) {
+        if (mythicMobsApi != null) {
             getServer().getPluginManager().registerEvents(new BossDeathListener(this), this);
             log.info("BossDeathListener registered.");
         } else {
-            log.warning("BossDeathListener registration skipped (ArenaManager or MythicMobs API missing).");
+            log.warning("BossDeathListener registration skipped (MythicMobs API missing).");
         }
-        // Register other listeners here if needed
+        getServer().getPluginManager().registerEvents(new PlayerArenaDeathListener(this), this);
+        log.info("PlayerArenaDeathListener registered.");
     }
 
 
@@ -149,101 +123,79 @@ public class BossEventManagerPlugin extends JavaPlugin {
     public void onDisable() {
         log.info("--------------------------------------");
         log.info(this.getDescription().getName() + " is disabling...");
-        // Unregister plugin channels
         this.getServer().getMessenger().unregisterOutgoingPluginChannel(this, BUNGEE_CHANNEL);
         this.getServer().getMessenger().unregisterIncomingPluginChannel(this, BUNGEE_CHANNEL);
-
         if (arenaManager != null) {
-            arenaManager.shutdown(); // Call shutdown for ArenaManager
+            arenaManager.shutdown();
         }
-        // Cancel any remaining tasks if needed
         Bukkit.getScheduler().cancelTasks(this);
         log.info(this.getDescription().getName() + " has been disabled.");
         log.info("--------------------------------------");
-        // Clear fields
-        instance = null;
-        vaultEconomy = null;
-        mythicMobsApi = null;
-        modelEngineApi = null;
-        faweApi = null;
-        configManager = null;
-        bossManager = null;
-        guiManager = null;
-        arenaManager = null; // Clear ArenaManager
-        partyInfoManager = null;
+        instance = null; vaultEconomy = null; mythicMobsApi = null; modelEngineApi = null;
+        faweApi = null; configManager = null; bossManager = null; guiManager = null;
+        arenaManager = null; partyInfoManager = null;
     }
 
-    // --- Setup Methods ---
     private boolean setupEconomy() {
-        if (getServer().getPluginManager().getPlugin("Vault") == null) {
-            log.warning("Vault plugin not found.");
+        PluginManager pm = getServer().getPluginManager();
+        if (pm.getPlugin("Vault") == null) {
+            log.warning("Vault plugin not found. Economy features will be disabled.");
             return false;
         }
+
+        // Check if PlayerPoints plugin is present
+        if (pm.getPlugin("PlayerPoints") != null) {
+            log.info("PlayerPoints plugin found. Attempting to hook PlayerPoints through Vault.");
+            Collection<RegisteredServiceProvider<Economy>> providers = getServer().getServicesManager().getRegistrations(Economy.class);
+            for (RegisteredServiceProvider<Economy> provider : providers) {
+                // Check the name of the plugin providing the economy service
+                // PlayerPoints usually registers with "PlayerPoints" or a similar name.
+                // This check might need adjustment if PlayerPoints uses a different internal name for its Vault hook.
+                if (provider.getPlugin().getName().equalsIgnoreCase("PlayerPoints")) {
+                    vaultEconomy = provider.getProvider();
+                    log.info("Successfully hooked into PlayerPoints as the economy provider via Vault!");
+                    return true; // Successfully hooked PlayerPoints
+                }
+            }
+            log.warning("PlayerPoints plugin is present, but could not specifically hook its economy service through Vault. Will attempt to use default Vault provider.");
+        } else {
+            log.info("PlayerPoints plugin not found. Will attempt to use default Vault economy provider.");
+        }
+
+        // Fallback to default Vault provider if PlayerPoints isn't found or couldn't be specifically hooked
         RegisteredServiceProvider<Economy> rsp = getServer().getServicesManager().getRegistration(Economy.class);
         if (rsp == null) {
-            log.warning("No economy provider found through Vault.");
+            log.warning("No economy provider found through Vault (neither PlayerPoints specifically nor any default).");
             return false;
         }
         vaultEconomy = rsp.getProvider();
-        return vaultEconomy != null;
+        log.info("Successfully hooked into Vault with default economy provider: " + vaultEconomy.getName());
+        return true; // vaultEconomy will be non-null if rsp wasn't null
     }
+
     private boolean setupMythicMobs() {
-        if (getServer().getPluginManager().getPlugin("MythicMobs") == null) {
-            log.warning("MythicMobs plugin not found.");
-            return false;
-        }
-        try {
-            mythicMobsApi = MythicProvider.get();
-            return mythicMobsApi != null;
-        } catch (Exception e) {
-            log.log(Level.SEVERE, "Could not retrieve MythicMobs API", e);
-            return false;
-        }
+        if (getServer().getPluginManager().getPlugin("MythicMobs") == null) { log.warning("MythicMobs plugin not found."); return false; }
+        try { mythicMobsApi = MythicProvider.get(); return mythicMobsApi != null; }
+        catch (Exception e) { log.log(Level.SEVERE, "Could not retrieve MythicMobs API", e); return false; }
     }
     private boolean setupModelEngine() {
-        if (getServer().getPluginManager().getPlugin("ModelEngine") == null) {
-            log.warning("ModelEngine plugin not found.");
-            return false;
-        }
-        try {
-            modelEngineApi = ModelEngineAPI.getAPI();
-            return modelEngineApi != null;
-        } catch (NoClassDefFoundError | Exception e) {
-            log.log(Level.SEVERE, "Could not retrieve ModelEngine API", e);
-            return false;
-        }
+        if (getServer().getPluginManager().getPlugin("ModelEngine") == null) { log.warning("ModelEngine plugin not found."); return false; }
+        try { modelEngineApi = ModelEngineAPI.getAPI(); return modelEngineApi != null; }
+        catch (NoClassDefFoundError | Exception e) { log.log(Level.SEVERE, "Could not retrieve ModelEngine API", e); return false; }
     }
     private boolean setupFAWE() {
-        if (getServer().getPluginManager().getPlugin("FastAsyncWorldEdit") == null) {
-            log.warning("FastAsyncWorldEdit plugin not found.");
-            return false;
-        }
-        try {
-            faweApi = WorldEdit.getInstance();
-            return faweApi != null;
-        } catch (NoClassDefFoundError ncdfe) {
-            log.severe("FAWE API class (WorldEdit) not found: " + ncdfe.getMessage());
-            return false;
-        }
-        catch (Exception e) {
-            log.log(Level.SEVERE, "Could not retrieve FAWE (WorldEdit) API instance", e);
-            return false;
-        }
+        if (getServer().getPluginManager().getPlugin("FastAsyncWorldEdit") == null) { log.warning("FastAsyncWorldEdit plugin not found."); return false; }
+        try { faweApi = WorldEdit.getInstance(); return faweApi != null; }
+        catch (NoClassDefFoundError ncdfe) { log.severe("FAWE API class (WorldEdit) not found: " + ncdfe.getMessage()); return false; }
+        catch (Exception e) { log.log(Level.SEVERE, "Could not retrieve FAWE (WorldEdit) API instance", e); return false; }
     }
-    private boolean setupPartyAndFriends() { // Placeholder
-        if (getServer().getPluginManager().getPlugin("PartyAndFriends") == null && getServer().getPluginManager().getPlugin("PAF") == null) {
-            // Check for common names
-            log.warning("PartyAndFriends plugin not found (checked PartyAndFriends and PAF).");
-            return false;
-        }
-        // This only checks if the plugin *exists* on Spigot, which it won't for the Bungee version.
-        // The real check is done in the Bungee extension. This method is now less meaningful.
-        // We rely on the Bungee extension to handle PAF interactions.
-        // Return true here for now, assuming Bungee extension handles the real check.
+    private boolean setupPartyAndFriends() {
+        // This method is now less critical as Bungee extension handles PAF.
+        // We can keep a basic check or log that Bungee interaction is expected.
+        log.info("Party & Friends integration relies on the BungeeCord extension (PAFBE).");
         return true;
     }
 
-    // --- Getter Methods ---
     public static BossEventManagerPlugin getInstance() { return instance; }
     public Economy getVaultEconomy() { return vaultEconomy; }
     public MythicPlugin getMythicMobsApi() { return mythicMobsApi; }
@@ -253,27 +205,6 @@ public class BossEventManagerPlugin extends JavaPlugin {
     public BossManager getBossManager() { return bossManager; }
     public GuiManager getGuiManager() { return guiManager; }
     public ArenaManager getArenaManager() { return arenaManager; }
-    public PartyInfoManager getPartyInfoManager() { return partyInfoManager; } // Getter for PartyInfoManager
+    public PartyInfoManager getPartyInfoManager() { return partyInfoManager; }
 
-    // --- Schematic Helper Methods (Used by ArenaManager) ---
-    public Clipboard loadSchematic(File schematicFile) {
-        if (faweApi == null) { log.severe("FAWE API not available..."); return null; }
-        if (!schematicFile.exists()) { log.severe("Schematic file does not exist..."); return null; }
-        ClipboardFormat format = ClipboardFormats.findByFile(schematicFile);
-        if (format == null) {
-            if (schematicFile.getName().toLowerCase().endsWith(".schem")) { format = ClipboardFormats.findByAlias("schem"); }
-            else if (schematicFile.getName().toLowerCase().endsWith(".schematic")) { format = ClipboardFormats.findByAlias("schematic"); }
-            if (format == null) { log.severe("Could not determine clipboard format..."); return null; }
-        }
-        try (ClipboardReader reader = format.getReader(new FileInputStream(schematicFile))) { return reader.read(); }
-        catch (IOException | WorldEditException e) { log.log(Level.SEVERE, "Failed to load schematic...", e); return null; }
-    }
-    public void pasteSchematic(Clipboard clipboard, org.bukkit.Location targetLocation, boolean ignoreAirBlocks) {
-        if (faweApi == null || clipboard == null || targetLocation == null || targetLocation.getWorld() == null) { log.severe("Cannot paste schematic..."); return; }
-        com.sk89q.worldedit.world.World worldEditWorld = BukkitAdapter.adapt(targetLocation.getWorld());
-        try (EditSession editSession = faweApi.newEditSession(worldEditWorld)) {
-            Operation operation = new ClipboardHolder(clipboard).createPaste(editSession).to(BlockVector3.at(targetLocation.getX(), targetLocation.getY(), targetLocation.getZ())).ignoreAirBlocks(ignoreAirBlocks).build();
-            Operations.complete(operation);
-        } catch (WorldEditException e) { log.log(Level.SEVERE, "Failed to paste schematic...", e); }
-    }
 }

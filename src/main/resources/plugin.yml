@@ -1,44 +1,47 @@
+# plugin.yml
 name: BossEventManager
-version: ${project.version}
+version: ${project.version} # This will be replaced by Maven
 main: io.mewb.bossEventManager.BossEventManagerPlugin
 api-version: 1.19
-author: MEWB - NOT INTENDED FOR RESALE.
+author: YourName # Replace with your name/team name
 description: A custom boss event plugin with party integration and instanced arenas.
 
 # Hard Dependencies: Your plugin will NOT load if these are missing.
 depend:
   - Vault
   - MythicMobs
-  - ModelEngine
-  - FastAsyncWorldEdit
-  # - PartyAndFriends # Uncomment when ready to integrate
+  - FastAsyncWorldEdit # FAWE is critical for arena pasting/clearing
+  # PartyAndFriends is a BungeeCord dependency for PAFBE, not a direct Spigot hard dep for BossEventManager
 
-# Soft Dependencies
-softdepend: []
+# Soft Dependencies: Your plugin will load even if these are missing,
+# but you should check for them in your onEnable() and disable functionality if not found.
+softdepend:
+  - ModelEngine # Optional for custom boss models
 
 commands:
-  bossevent:
-    description: Main command for the Boss Event Manager.
-    usage: /<command> <open/start/help/reload/admin> [args...]
-    aliases: [be, eventboss]
-    permission: bosseventmanager.command.use
+  events: # Changed from bossevent
+    description: Main command for the Event Manager.
+    usage: /<command> <open|help|reload|admin> [args...] # Removed 'start' as it's GUI driven
+    aliases: [event, ev] # New aliases
+    permission: bosseventmanager.command.use # Keeping permission node general
 
 permissions:
   bosseventmanager.command.use:
-    description: Allows usage of the main /bossevent command (e.g. /be help).
+    description: Allows usage of the main /events command (e.g. /events help).
     default: true
   bosseventmanager.command.open:
-    description: Allows opening the boss event selection GUI.
+    description: Allows opening the event selection GUI via /events open.
     default: true
   bosseventmanager.admin:
-    description: Allows access to admin commands for BossEventManager.
+    description: Allows access to all admin commands for BossEventManager.
     default: op
   bosseventmanager.admin.reload: # Child of bosseventmanager.admin
-    description: Allows usage of the /bossevent reload command.
+    description: Allows usage of the /events reload command.
     default: op
-  bosseventmanager.admin.test: # New permission for test/debug commands
-    description: Allows usage of arena testing and debugging commands.
+  bosseventmanager.admin.test: # Child of bosseventmanager.admin
+    description: Allows usage of arena and party testing/debugging commands.
     default: op
+  # Example for per-boss start permission if needed later (not directly used by current GUI flow)
   # bosseventmanager.event.start.<boss_id>:
-  #   description: Allows starting a specific boss event.
+  #   description: Allows starting a specific boss event (if direct command start is added).
   #   default: op

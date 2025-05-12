@@ -4,27 +4,33 @@ package io.mewb.bossEventManager.managers;
 import io.mewb.bossEventManager.BossEventManagerPlugin;
 import io.mewb.bossEventManager.bosses.BossDefinition;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.MemorySection;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
-import java.util.stream.Collectors; // Added for stream operations
+import java.util.stream.Collectors;
 
 public class BossManager {
 
     private final BossEventManagerPlugin plugin;
     private final Map<String, BossDefinition> bossDefinitions;
-    private final Map<String, List<BossDefinition>> bossesByDifficulty; // Added map for quick difficulty lookup
+    private final Map<String, List<BossDefinition>> bossesByDifficulty;
 
     public BossManager(BossEventManagerPlugin plugin) {
         this.plugin = plugin;
         this.bossDefinitions = new HashMap<>();
-        this.bossesByDifficulty = new HashMap<>(); // Initialize map
+        this.bossesByDifficulty = new HashMap<>();
         loadBosses();
     }
 
     private void loadBosses() {
         bossDefinitions.clear();
-        bossesByDifficulty.clear(); // Clear difficulty map on reload
+        bossesByDifficulty.clear();
         ConfigurationSection bossesSection = plugin.getConfigManager().getConfig().getConfigurationSection("bosses");
 
         if (bossesSection == null) {
@@ -41,23 +47,36 @@ public class BossManager {
 
             try {
                 String displayName = currentBossSection.getString("display-name", "&cUnnamed Boss");
-                String difficulty = currentBossSection.getString("difficulty"); // Load difficulty string
+                String difficulty = currentBossSection.getString("difficulty");
                 if (difficulty == null || difficulty.isEmpty()) {
                     plugin.getLogger().severe("Boss '" + bossId + "' is missing a 'difficulty'. Skipping.");
-                    continue; // Make difficulty mandatory
+                    continue;
                 }
                 String mythicMobId = currentBossSection.getString("mythicmob-id");
                 if (mythicMobId == null || mythicMobId.isEmpty()) {
                     plugin.getLogger().severe("Boss '" + bossId + "' is missing a 'mythicmob-id'. Skipping.");
                     continue;
                 }
-
+                String finalPhaseId = currentBossSection.getString("final-phase-mythicmob-id", mythicMobId);
                 String modelEngineId = currentBossSection.getString("modelengine-id");
                 List<String> description = currentBossSection.getStringList("description");
                 int gemCost = currentBossSection.getInt("gem-cost", plugin.getConfigManager().getConfig().getInt("economy.default-gem-cost", 100));
                 int requiredLevel = currentBossSection.getInt("required-level", 0);
-                // String arenaTheme = currentBossSection.getString("arena-theme"); // REMOVED
-                List<String> rewardsCommands = currentBossSection.getStringList("rewards");
+
+                List<Map<?, ?>> rewardConfigMaps = currentBossSection.getMapList("rewards");
+                if (rewardConfigMaps.isEmpty() && currentBossSection.isList("rewards")) {
+                    List<String> oldRewardStrings = currentBossSection.getStringList("rewards");
+                    rewardConfigMaps = new ArrayList<>();
+                    for (String cmd : oldRewardStrings) {
+                        Map<String, Object> map = new HashMap<>();
+                        map.put("command", cmd);
+                        map.put("chance", 1.0);
+                        rewardConfigMaps.add(map);
+                    }
+                    if (!oldRewardStrings.isEmpty()) {
+                        plugin.getLogger().info("Boss '" + bossId + "' uses old reward string format. Converted to new format with 100% chance.");
+                    }
+                }
 
                 Map<String, Double> partySizeScaling = new HashMap<>();
                 ConfigurationSection scalingSection = currentBossSection.getConfigurationSection("party-size-scaling");
@@ -70,19 +89,15 @@ public class BossManager {
                 }
 
                 BossDefinition definition = new BossDefinition(
-                        bossId, displayName, difficulty, mythicMobId, modelEngineId,
-                        description, gemCost, requiredLevel, /* Removed arenaTheme */
-                        rewardsCommands, partySizeScaling.isEmpty() ? null : partySizeScaling
+                        bossId, displayName, difficulty, mythicMobId, finalPhaseId, modelEngineId,
+                        description, gemCost, requiredLevel,
+                        rewardConfigMaps, partySizeScaling.isEmpty() ? null : partySizeScaling
                 );
 
                 bossDefinitions.put(bossId.toLowerCase(), definition);
-
-                // Add to difficulty map (case-insensitive difficulty key)
                 bossesByDifficulty.computeIfAbsent(difficulty.toLowerCase(), k -> new ArrayList<>()).add(definition);
 
-                if (plugin.getConfigManager().isDebugMode()) {
-                    plugin.getLogger().info("Loaded boss definition: " + bossId + " (Difficulty: " + difficulty + ")");
-                }
+                // plugin.getLogger().info("Loaded boss definition: " + bossId + " (Difficulty: " + difficulty + ")"); // Optional debug
 
             } catch (Exception e) {
                 plugin.getLogger().log(Level.SEVERE, "Failed to load boss definition for ID: " + bossId, e);
@@ -100,34 +115,19 @@ public class BossManager {
         return Collections.unmodifiableCollection(bossDefinitions.values());
     }
 
-    /**
-     * Gets all unique difficulty levels defined for loaded bosses.
-     * @return A collection of difficulty strings (case-preserved from first encountered).
-     */
     public Collection<String> getAvailableDifficulties() {
-        // Return keys from the difficulty map, preserving original casing if needed
-        // This gives unique keys used. For original casing, we might need another approach during loading.
-        // Returning the keys from the bossesByDifficulty map (which are lowercased) might be sufficient for internal use.
-        // For display, we might want to retrieve the original casing from the first boss loaded for that difficulty.
         return bossesByDifficulty.values().stream()
                 .filter(list -> !list.isEmpty())
-                .map(list -> list.get(0).getDifficulty()) // Get original casing from first boss in list
-                .collect(Collectors.toSet()); // Use Set for uniqueness
+                .map(list -> list.get(0).getDifficulty())
+                .collect(Collectors.toSet());
     }
 
-    /**
-     * Gets all bosses matching a specific difficulty level (case-insensitive).
-     * @param difficulty The difficulty string.
-     * @return A list of BossDefinitions for that difficulty, or an empty list if none found.
-     */
     public List<BossDefinition> getBossesByDifficulty(String difficulty) {
         if (difficulty == null) return Collections.emptyList();
-        // Return an unmodifiable list or a copy to prevent external modification
         return Collections.unmodifiableList(
                 bossesByDifficulty.getOrDefault(difficulty.toLowerCase(), Collections.emptyList())
         );
     }
-
 
     public void reloadBosses() {
         plugin.getLogger().info("Reloading boss definitions...");
