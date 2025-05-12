@@ -2,8 +2,9 @@ package io.mewb.bossEventManager.party;
 
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
-
 import io.mewb.bossEventManager.BossEventManagerPlugin;
+import io.mewb.bossEventManager.party.PartyInfo;
+
 import org.bukkit.entity.Player;
 
 import java.util.List;
@@ -55,7 +56,7 @@ public class PartyInfoManager {
 
         // Send the message to BungeeCord via the player's connection
         player.sendPluginMessage(plugin, BossEventManagerPlugin.BUNGEE_CHANNEL, out.toByteArray());
-        plugin.getLogger().info("Sent GET_PARTY_INFO request for player " + player.getName() + " (UUID: " + playerUUID + ")");
+        // plugin.getLogger().info("Sent GET_PARTY_INFO request for player " + player.getName() + " (UUID: " + playerUUID + ")"); // Commented out
 
         // Add a timeout for the request
         future.completeOnTimeout(new PartyInfo(playerUUID), 5, TimeUnit.SECONDS); // Timeout after 5 seconds
@@ -89,24 +90,19 @@ public class PartyInfoManager {
         if (future != null) {
             PartyInfo info = new PartyInfo(playerUUID, isLeader, partySize, memberUUIDs);
             future.complete(info); // Complete the future with the received data
-            plugin.getLogger().info("Received and processed PARTY_INFO_RESPONSE for " + playerUUID);
+            // plugin.getLogger().info("Received and processed PARTY_INFO_RESPONSE for " + playerUUID); // Commented out
         } else {
-            // This can happen if the request timed out before the response arrived,
-            // or if an unexpected response was received.
             plugin.getLogger().warning("Received PARTY_INFO_RESPONSE for UUID " + playerUUID + " but no pending request was found (or it timed out).");
         }
     }
 
-    /**
-     * Handles cases where the response indicates a failure (e.g., player not found by PAF).
-     * @param playerUUID The UUID of the player the failed response is for.
-     */
+
     public void handlePartyInfoFailure(UUID playerUUID) {
         CompletableFuture<PartyInfo> future = pendingRequests.get(playerUUID);
         if (future != null) {
             PartyInfo failedInfo = new PartyInfo(playerUUID); // Create failure object
             future.complete(failedInfo);
-            plugin.getLogger().info("Processed failed PARTY_INFO_RESPONSE for " + playerUUID);
+            // plugin.getLogger().info("Processed failed PARTY_INFO_RESPONSE for " + playerUUID); // Commented out
         } else {
             plugin.getLogger().warning("Received failed PARTY_INFO_RESPONSE for UUID " + playerUUID + " but no pending request was found (or it timed out).");
         }

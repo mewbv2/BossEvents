@@ -31,6 +31,7 @@ public class BossEventCommand implements CommandExecutor, TabCompleter {
 
     private final BossEventManagerPlugin plugin;
     private final ConfigManager configManager;
+    // Managers retrieved lazily to handle potential delayed initialization
     private ArenaManager arenaManager;
     private PartyInfoManager partyInfoManager;
     private GuiManager guiManager;
@@ -39,8 +40,10 @@ public class BossEventCommand implements CommandExecutor, TabCompleter {
     public BossEventCommand(BossEventManagerPlugin plugin) {
         this.plugin = plugin;
         this.configManager = plugin.getConfigManager();
+        // Initialize managers lazily via getters
     }
 
+    // Helper getters to ensure managers are available when needed
     private ArenaManager getArenaManager() {
         if (this.arenaManager == null) {
             this.arenaManager = plugin.getArenaManager();
@@ -58,11 +61,6 @@ public class BossEventCommand implements CommandExecutor, TabCompleter {
     private GuiManager getGuiManager() {
         if (this.guiManager == null) {
             this.guiManager = plugin.getGuiManager();
-            // if (this.guiManager != null) {
-            //     plugin.getLogger().info("[BossEventCommand] Lazily fetched GuiManager instance.");
-            // } else {
-            //      plugin.getLogger().warning("[BossEventCommand] Attempted to fetch GuiManager, but it was null in main plugin class!");
-            // }
         }
         return this.guiManager;
     }
@@ -70,35 +68,32 @@ public class BossEventCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
+        // 'label' will be the actual command alias used by the player (e.g., "events", "event", "ev")
+
         if (args.length == 0) {
-            sendHelpMessage(sender, label);
+            sendHelpMessage(sender, label); // Pass the used label
             return true;
         }
 
         String subCommand = args[0].toLowerCase();
-        // plugin.getLogger().info("[DEBUG] Command received: /" + label + " " + String.join(" ", args) + " by " + sender.getName());
 
         switch (subCommand) {
             case "help":
-                sendHelpMessage(sender, label);
+                sendHelpMessage(sender, label); // Pass the used label
                 break;
             case "open":
-                // plugin.getLogger().info("[DEBUG] 'open' subcommand triggered.");
                 if (!(sender instanceof Player)) {
-                    sender.sendMessage(configManager.getPrefix() + ChatColor.RED + "Only players can open the boss event GUI.");
+                    sender.sendMessage(configManager.getPrefix() + ChatColor.RED + "Only players can open the event GUI.");
                     return true;
                 }
                 Player player = (Player) sender;
                 if (!player.hasPermission("bosseventmanager.command.open")) {
-                    // plugin.getLogger().info("[DEBUG] Player " + player.getName() + " lacks bosseventmanager.command.open permission.");
                     player.sendMessage(configManager.getMessage("no-permission"));
                     return true;
                 }
-                // plugin.getLogger().info("[DEBUG] Calling openDifficultySelectionGui for " + player.getName());
                 openDifficultySelectionGui(player);
                 break;
             case "reload":
-                // plugin.getLogger().info("[DEBUG] 'reload' subcommand triggered.");
                 if (!sender.hasPermission("bosseventmanager.admin.reload")) {
                     sender.sendMessage(configManager.getMessage("no-permission"));
                     return true;
@@ -106,13 +101,12 @@ public class BossEventCommand implements CommandExecutor, TabCompleter {
                 reloadPluginConfiguration(sender);
                 break;
             case "admin":
-                // plugin.getLogger().info("[DEBUG] 'admin' subcommand triggered.");
                 if (args.length < 2) {
                     sender.sendMessage(configManager.getPrefix() + ChatColor.RED + "Usage: /" + label + " admin <arena|party> ...");
-                    sendAdminHelp(sender, label);
+                    sendAdminHelp(sender, label); // Pass the used label
                     return true;
                 }
-                handleAdminCommands(sender, label, args);
+                handleAdminCommands(sender, label, args); // Pass the used label
                 break;
             default:
                 sender.sendMessage(configManager.getPrefix() + ChatColor.RED + "Unknown sub-command. Use /" + label + " help for assistance.");
@@ -121,11 +115,10 @@ public class BossEventCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
+    // Helper method to open the initial GUI screen
     private void openDifficultySelectionGui(Player player) {
-        // plugin.getLogger().info("[DEBUG] Inside openDifficultySelectionGui helper method for " + player.getName());
         GuiManager currentGuiManager = getGuiManager();
         if (currentGuiManager != null) {
-            // plugin.getLogger().info("[DEBUG] GuiManager is available. Calling openDifficultySelectionGUI...");
             currentGuiManager.openDifficultySelectionGUI(player);
         } else {
             player.sendMessage(configManager.getPrefix() + ChatColor.RED + "Error: GUI Manager is not available.");
@@ -133,21 +126,25 @@ public class BossEventCommand implements CommandExecutor, TabCompleter {
         }
     }
 
+    // --- Admin Command Handling ---
     private void handleAdminCommands(CommandSender sender, String label, String[] args) {
+        // args[0] is "admin"
         String adminGroup = args[1].toLowerCase();
-        if (!sender.hasPermission("bosseventmanager.admin.test")) {
+
+        if (!sender.hasPermission("bosseventmanager.admin.test")) { // This permission covers all admin sub-commands for now
             sender.sendMessage(configManager.getMessage("no-permission"));
             return;
         }
+
         switch (adminGroup) {
             case "arena":
-                handleAdminArenaCommands(sender, label, args);
+                handleAdminArenaCommands(sender, label, args); // Pass label
                 break;
             case "party":
-                handleAdminPartyCommands(sender, label, args);
+                handleAdminPartyCommands(sender, label, args); // Pass label
                 break;
             default:
-                sender.sendMessage(configManager.getPrefix() + ChatColor.RED + "Unknown admin command group. Available: arena, party");
+                sender.sendMessage(configManager.getPrefix() + ChatColor.RED + "Unknown admin command group. Use: /" + label + " admin <arena|party>");
                 break;
         }
     }
@@ -158,7 +155,11 @@ public class BossEventCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage(configManager.getPrefix() + ChatColor.RED + "ArenaManager is not available. Admin arena commands disabled.");
             return;
         }
-        if (args.length < 3) { sender.sendMessage(configManager.getPrefix() + ChatColor.RED + "Usage: /" + label + " admin arena <listthemes|create|starttest|listinstances|cleanup> [args...]"); return; }
+        // args[0] is "admin", args[1] is "arena"
+        if (args.length < 3) {
+            sender.sendMessage(configManager.getPrefix() + ChatColor.RED + "Usage: /" + label + " admin arena <listthemes|create|starttest|listinstances|cleanup> [args...]");
+            return;
+        }
         String arenaAction = args[2].toLowerCase();
         switch (arenaAction) {
             case "listthemes":
@@ -171,8 +172,10 @@ public class BossEventCommand implements CommandExecutor, TabCompleter {
                 String themeIdToCreate = args[3];
                 sender.sendMessage(configManager.getPrefix() + ChatColor.YELLOW + "Attempting to create arena for theme: " + themeIdToCreate + "...");
                 currentArenaManager.requestArena(themeIdToCreate).thenAccept(instance -> {
-                    if (instance != null) { sender.sendMessage(configManager.getPrefix() + ChatColor.GREEN + "Arena instance " + instance.getInstanceId() + " created successfully at " + instance.getPlotOrigin().toString()); sender.sendMessage(configManager.getPrefix() + ChatColor.GRAY + "State: " + instance.getState()); }
-                    else { sender.sendMessage(configManager.getPrefix() + ChatColor.RED + "Failed to create arena instance for theme: " + themeIdToCreate + ". Check console."); }
+                    Bukkit.getScheduler().runTask(plugin, () -> { // Ensure message sending is sync
+                        if (instance != null) { sender.sendMessage(configManager.getPrefix() + ChatColor.GREEN + "Arena instance " + instance.getInstanceId() + " created successfully at " + instance.getPlotOrigin().toString()); sender.sendMessage(configManager.getPrefix() + ChatColor.GRAY + "State: " + instance.getState()); }
+                        else { sender.sendMessage(configManager.getPrefix() + ChatColor.RED + "Failed to create arena instance for theme: " + themeIdToCreate + ". Check console."); }
+                    });
                 });
                 break;
             case "starttest":
@@ -181,7 +184,7 @@ public class BossEventCommand implements CommandExecutor, TabCompleter {
                 Player testPlayer = null;
                 if (args.length >= 5) { testPlayer = Bukkit.getPlayerExact(args[4]); if (testPlayer == null) { sender.sendMessage(configManager.getPrefix() + ChatColor.RED + "Player '" + args[4] + "' not found."); return; } }
                 else if (sender instanceof Player) { testPlayer = (Player) sender; }
-                else { sender.sendMessage(configManager.getPrefix() + ChatColor.RED + "Specify player name from console."); return; }
+                else { sender.sendMessage(configManager.getPrefix() + ChatColor.RED + "Specify player name from console for starttest."); return; }
                 final Player finalTestPlayer = testPlayer;
                 sender.sendMessage(configManager.getPrefix() + ChatColor.YELLOW + "Attempting test event (Theme: " + themeIdToTest + ", Player: " + finalTestPlayer.getName() + ")...");
                 BossDefinition testBossDef = plugin.getBossManager().getAllBossDefinitions().stream().findFirst().orElse(null);
@@ -216,7 +219,7 @@ public class BossEventCommand implements CommandExecutor, TabCompleter {
                 } catch (IllegalArgumentException e) { sender.sendMessage(configManager.getPrefix() + ChatColor.RED + "Invalid Instance ID format."); }
                 break;
             default:
-                sender.sendMessage(configManager.getPrefix() + ChatColor.RED + "Unknown admin arena action.");
+                sender.sendMessage(configManager.getPrefix() + ChatColor.RED + "Unknown admin arena action. Use: listthemes, create, starttest, listinstances, cleanup.");
                 break;
         }
     }
@@ -227,7 +230,11 @@ public class BossEventCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage(configManager.getPrefix() + ChatColor.RED + "PartyInfoManager is not available. Admin party commands disabled.");
             return;
         }
-        if (args.length < 3) { sender.sendMessage(configManager.getPrefix() + ChatColor.RED + "Usage: /" + label + " admin party <test> <playerName>"); return; }
+        // args[0] is "admin", args[1] is "party"
+        if (args.length < 3) {
+            sender.sendMessage(configManager.getPrefix() + ChatColor.RED + "Usage: /" + label + " admin party <test> <playerName>");
+            return;
+        }
         String partyAction = args[2].toLowerCase();
         if ("test".equals(partyAction)) {
             if (args.length < 4) { sender.sendMessage(configManager.getPrefix() + ChatColor.RED + "Usage: /" + label + " admin party test <playerName>"); return; }
@@ -235,7 +242,7 @@ public class BossEventCommand implements CommandExecutor, TabCompleter {
             if (targetPlayer == null) { sender.sendMessage(configManager.getPrefix() + ChatColor.RED + "Player '" + args[3] + "' not found online."); return; }
             sender.sendMessage(configManager.getPrefix() + ChatColor.YELLOW + "Requesting party info for " + targetPlayer.getName() + " via BungeeCord...");
             currentPartyManager.requestPartyInfo(targetPlayer).whenComplete((partyInfo, throwable) -> {
-                Bukkit.getScheduler().runTask(plugin, () -> {
+                Bukkit.getScheduler().runTask(plugin, () -> { // Ensure message sending is sync
                     if (throwable != null) { sender.sendMessage(configManager.getPrefix() + ChatColor.RED + "Error requesting party info: " + throwable.getMessage()); plugin.getLogger().warning("Error in PartyInfo future: " + throwable.getMessage()); }
                     else if (partyInfo == null || !partyInfo.isSuccess()) { sender.sendMessage(configManager.getPrefix() + ChatColor.RED + "Failed to get party info for " + targetPlayer.getName() + " (Timeout or player not found by PAF?)."); }
                     else {
@@ -253,14 +260,15 @@ public class BossEventCommand implements CommandExecutor, TabCompleter {
         }
     }
 
+    // --- Help and Reload ---
     private void sendHelpMessage(CommandSender sender, String label) {
         String prefix = configManager.getPrefix();
         sender.sendMessage(ChatColor.GOLD + "--- " + prefix + ChatColor.GOLD + "Help ---");
-        sender.sendMessage(ChatColor.YELLOW + "/" + label + " open" + ChatColor.GRAY + " - Opens the boss event selection menu.");
+        sender.sendMessage(ChatColor.YELLOW + "/" + label + " open" + ChatColor.GRAY + " - Opens the event selection menu.");
         if (sender.hasPermission("bosseventmanager.admin.reload")) {
             sender.sendMessage(ChatColor.YELLOW + "/" + label + " reload" + ChatColor.GRAY + " - Reloads plugin configurations.");
         }
-        sendAdminHelp(sender, label);
+        sendAdminHelp(sender, label); // Pass label
     }
     private void sendAdminHelp(CommandSender sender, String label) {
         if (sender.hasPermission("bosseventmanager.admin.test")) {
@@ -275,8 +283,8 @@ public class BossEventCommand implements CommandExecutor, TabCompleter {
     }
     private void reloadPluginConfiguration(CommandSender sender) {
         configManager.reloadConfig();
-        plugin.getBossManager().reloadBosses();
-        if (getArenaManager() != null) {
+        if (plugin.getBossManager() != null) plugin.getBossManager().reloadBosses(); // Check for null
+        if (getArenaManager() != null) { // Use getter for lazy init
             getArenaManager().reloadArenaThemes();
         } else {
             sender.sendMessage(configManager.getPrefix() + ChatColor.YELLOW + "ArenaManager not available, skipped reloading arena themes.");
@@ -284,9 +292,12 @@ public class BossEventCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(configManager.getPrefix() + ChatColor.GREEN + "Configurations reloaded.");
     }
 
+
+    // --- Tab Completion ---
     @Nullable
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
+        // alias will be the actual command alias used by the player
         if (args.length == 1) {
             List<String> subCommands = new ArrayList<>(Arrays.asList("help", "open"));
             if (sender.hasPermission("bosseventmanager.admin.reload")) { subCommands.add("reload"); }
@@ -312,11 +323,11 @@ public class BossEventCommand implements CommandExecutor, TabCompleter {
             if (args[1].equalsIgnoreCase("arena")) {
                 String action = args[2].toLowerCase();
                 if (action.equals("create") || action.equals("starttest")) {
-                    if (sender.hasPermission("bosseventmanager.admin.test") && getArenaManager() != null) {
+                    if (sender.hasPermission("bosseventmanager.admin.test") && getArenaManager() != null) { // Use getter
                         return getArenaManager().getAllArenaThemes().stream().map(ArenaTheme::getId).filter(s -> s.toLowerCase().startsWith(args[3].toLowerCase())).collect(Collectors.toList());
                     }
                 } else if (action.equals("cleanup")) {
-                    if (sender.hasPermission("bosseventmanager.admin.test") && getArenaManager() != null) {
+                    if (sender.hasPermission("bosseventmanager.admin.test") && getArenaManager() != null) { // Use getter
                         return getArenaManager().getActiveArenaInstances().stream().map(instance -> instance.getInstanceId().toString()).filter(s -> s.toLowerCase().startsWith(args[3].toLowerCase())).collect(Collectors.toList());
                     }
                 }
@@ -333,6 +344,6 @@ public class BossEventCommand implements CommandExecutor, TabCompleter {
             }
         }
 
-        return Collections.emptyList();
+        return Collections.emptyList(); // Return empty list if no match
     }
 }

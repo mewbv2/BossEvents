@@ -1,6 +1,16 @@
 package io.mewb.bossEventManager;
 
 import com.sk89q.worldedit.WorldEdit;
+import com.sk89q.worldedit.WorldEditException;
+import com.sk89q.worldedit.bukkit.BukkitAdapter;
+import com.sk89q.worldedit.extent.clipboard.Clipboard;
+import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormat;
+import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormats;
+import com.sk89q.worldedit.extent.clipboard.io.ClipboardReader;
+import com.sk89q.worldedit.function.operation.Operation;
+import com.sk89q.worldedit.function.operation.Operations;
+import com.sk89q.worldedit.math.BlockVector3;
+import com.sk89q.worldedit.session.ClipboardHolder;
 
 
 import io.mewb.bossEventManager.commands.BossEventCommand;
@@ -16,7 +26,7 @@ import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.command.PluginCommand;
-import org.bukkit.plugin.PluginManager; // Import PluginManager
+import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -27,7 +37,7 @@ import com.ticxo.modelengine.api.ModelEngineAPI;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.Collection; // Import Collection
+import java.util.Collection;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -66,9 +76,7 @@ public class BossEventManagerPlugin extends JavaPlugin {
         if (!setupMythicMobs()) { log.severe("MythicMobs not found! Boss functionality will be severely limited."); } else { log.info("Successfully hooked into MythicMobs!"); }
         if (!setupModelEngine()) { log.severe("ModelEngine not found or API could not be hooked! Custom models will not work."); } else { log.info("Successfully hooked into ModelEngine!"); }
         if (!setupFAWE()) { log.severe("FastAsyncWorldEdit (FAWE) not found or API could not be hooked! Arena creation will fail."); } else { log.info("Successfully hooked into FastAsyncWorldEdit (FAWE)!"); }
-        // setupPartyAndFriends() is now just a placeholder, real check is Bungee-side
-        setupPartyAndFriends();
-
+        setupPartyAndFriends(); // Placeholder, real check is Bungee-side
 
         bossManager = new BossManager(this);
         partyInfoManager = new PartyInfoManager(this);
@@ -87,14 +95,16 @@ public class BossEventManagerPlugin extends JavaPlugin {
             }
         }, 20L);
 
+        // --- Register Commands ---
+        // Use the new command name "events" as defined in plugin.yml
         BossEventCommand bossEventCommandExecutor = new BossEventCommand(this);
-        PluginCommand bossEventPluginCommand = getCommand("bossevent");
-        if (bossEventPluginCommand != null) {
-            bossEventPluginCommand.setExecutor(bossEventCommandExecutor);
-            bossEventPluginCommand.setTabCompleter(bossEventCommandExecutor);
-            log.info("'/bossevent' command registered.");
+        PluginCommand eventsPluginCommand = getCommand("events"); // Changed from "bossevent" to "events"
+        if (eventsPluginCommand != null) {
+            eventsPluginCommand.setExecutor(bossEventCommandExecutor);
+            eventsPluginCommand.setTabCompleter(bossEventCommandExecutor);
+            log.info("'/events' command registered successfully."); // Updated log message
         } else {
-            log.severe("Could not register '/bossevent' command! Check plugin.yml.");
+            log.severe("Could not register '/events' command! Check plugin.yml matches this name."); // Updated log message
         }
 
         this.getServer().getMessenger().registerOutgoingPluginChannel(this, BUNGEE_CHANNEL);
@@ -108,7 +118,7 @@ public class BossEventManagerPlugin extends JavaPlugin {
     }
 
     private void registerListeners() {
-        if (mythicMobsApi != null) {
+        if (mythicMobsApi != null) { // BossDeathListener only needs MythicMobs
             getServer().getPluginManager().registerEvents(new BossDeathListener(this), this);
             log.info("BossDeathListener registered.");
         } else {
@@ -143,18 +153,14 @@ public class BossEventManagerPlugin extends JavaPlugin {
             return false;
         }
 
-        // Check if PlayerPoints plugin is present
         if (pm.getPlugin("PlayerPoints") != null) {
             log.info("PlayerPoints plugin found. Attempting to hook PlayerPoints through Vault.");
             Collection<RegisteredServiceProvider<Economy>> providers = getServer().getServicesManager().getRegistrations(Economy.class);
             for (RegisteredServiceProvider<Economy> provider : providers) {
-                // Check the name of the plugin providing the economy service
-                // PlayerPoints usually registers with "PlayerPoints" or a similar name.
-                // This check might need adjustment if PlayerPoints uses a different internal name for its Vault hook.
                 if (provider.getPlugin().getName().equalsIgnoreCase("PlayerPoints")) {
                     vaultEconomy = provider.getProvider();
                     log.info("Successfully hooked into PlayerPoints as the economy provider via Vault!");
-                    return true; // Successfully hooked PlayerPoints
+                    return true;
                 }
             }
             log.warning("PlayerPoints plugin is present, but could not specifically hook its economy service through Vault. Will attempt to use default Vault provider.");
@@ -162,7 +168,6 @@ public class BossEventManagerPlugin extends JavaPlugin {
             log.info("PlayerPoints plugin not found. Will attempt to use default Vault economy provider.");
         }
 
-        // Fallback to default Vault provider if PlayerPoints isn't found or couldn't be specifically hooked
         RegisteredServiceProvider<Economy> rsp = getServer().getServicesManager().getRegistration(Economy.class);
         if (rsp == null) {
             log.warning("No economy provider found through Vault (neither PlayerPoints specifically nor any default).");
@@ -170,7 +175,7 @@ public class BossEventManagerPlugin extends JavaPlugin {
         }
         vaultEconomy = rsp.getProvider();
         log.info("Successfully hooked into Vault with default economy provider: " + vaultEconomy.getName());
-        return true; // vaultEconomy will be non-null if rsp wasn't null
+        return true;
     }
 
     private boolean setupMythicMobs() {
@@ -190,8 +195,6 @@ public class BossEventManagerPlugin extends JavaPlugin {
         catch (Exception e) { log.log(Level.SEVERE, "Could not retrieve FAWE (WorldEdit) API instance", e); return false; }
     }
     private boolean setupPartyAndFriends() {
-        // This method is now less critical as Bungee extension handles PAF.
-        // We can keep a basic check or log that Bungee interaction is expected.
         log.info("Party & Friends integration relies on the BungeeCord extension (PAFBE).");
         return true;
     }

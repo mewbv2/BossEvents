@@ -24,7 +24,6 @@ public class SpigotPluginMessageListener implements PluginMessageListener {
 
     public SpigotPluginMessageListener(BossEventManagerPlugin plugin) {
         this.plugin = plugin;
-        // Get the PartyInfoManager instance - ensure it's initialized before this listener is registered
         this.partyInfoManager = plugin.getPartyInfoManager();
         if (this.partyInfoManager == null) {
             plugin.getLogger().severe("SpigotPluginMessageListener could not get PartyInfoManager instance! Responses will not be processed.");
@@ -33,10 +32,8 @@ public class SpigotPluginMessageListener implements PluginMessageListener {
 
     @Override
     public void onPluginMessageReceived(@NotNull String channel, @NotNull Player player, @NotNull byte[] message) {
-        // We don't strictly need the 'player' argument here as Bungee sends to the server,
-        // but Bukkit requires it in the signature. The relevant player UUID is inside the message.
         if (!channel.equals(BossEventManagerPlugin.BUNGEE_CHANNEL)) {
-            return; // Ignore messages not on our channel
+            return;
         }
         if (partyInfoManager == null) {
             plugin.getLogger().warning("Received plugin message on channel " + channel + " but PartyInfoManager is null. Cannot process.");
@@ -46,10 +43,9 @@ public class SpigotPluginMessageListener implements PluginMessageListener {
         ByteArrayDataInput input = ByteStreams.newDataInput(message);
 
         try {
-            String subChannel = input.readUTF(); // Read the sub-channel
+            String subChannel = input.readUTF();
 
             if ("PARTY_INFO_RESPONSE".equalsIgnoreCase(subChannel)) {
-                // Parse the response data according to the format sent by PAFBE
                 UUID requestedPlayerUUID = UUID.fromString(input.readUTF());
                 boolean isLeader = input.readBoolean();
                 int partySize = input.readInt();
@@ -59,19 +55,16 @@ public class SpigotPluginMessageListener implements PluginMessageListener {
                     memberUUIDs.add(UUID.fromString(input.readUTF()));
                 }
 
-                plugin.getLogger().info("Received PARTY_INFO_RESPONSE for " + requestedPlayerUUID + " (Leader: " + isLeader + ", Size: " + partySize + ")");
-                // Pass the data to the PartyInfoManager to complete the future
+                // plugin.getLogger().info("Received PARTY_INFO_RESPONSE for " + requestedPlayerUUID + " (Leader: " + isLeader + ", Size: " + partySize + ")"); // Commented out
                 partyInfoManager.handlePartyInfoResponse(requestedPlayerUUID, isLeader, partySize, memberUUIDs);
 
             }
-            // Add handling for other potential sub-channels/responses if needed
             // else if ("PARTY_INFO_FAILURE".equalsIgnoreCase(subChannel)) {
             //    UUID requestedPlayerUUID = UUID.fromString(input.readUTF());
             //    partyInfoManager.handlePartyInfoFailure(requestedPlayerUUID);
             // }
 
         } catch (IllegalStateException | IllegalArgumentException e) {
-            // IllegalStateException if not enough bytes, IllegalArgumentException for UUID parsing
             plugin.getLogger().log(Level.SEVERE, "Error parsing PARTY_INFO_RESPONSE plugin message.", e);
         }
     }

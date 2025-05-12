@@ -11,6 +11,8 @@ import java.util.UUID;
  */
 public class PartyInfo {
 
+    //This literally just does nothing, too lazy to refactor
+
     private final UUID requestedPlayerUUID;
     private final boolean isLeader;
     private final int partySize;

@@ -37,10 +37,7 @@ public class ConfigManager {
         loadConfigValues();
     }
 
-    /**
-     * Sets up the config file and loads it.
-     * If the config file doesn't exist, it creates it from the default in the JAR.
-     */
+
     private void setup() {
         if (!plugin.getDataFolder().exists()) {
             boolean created = plugin.getDataFolder().mkdir();
@@ -56,19 +53,17 @@ public class ConfigManager {
         }
 
         config = YamlConfiguration.loadConfiguration(configFile);
-        // Ensure defaults are loaded if the file was just created or is missing sections
+
         InputStream defaultConfigStream = plugin.getResource("config.yml");
         if (defaultConfigStream != null) {
             YamlConfiguration defaultConfig = YamlConfiguration.loadConfiguration(new InputStreamReader(defaultConfigStream));
             config.setDefaults(defaultConfig);
-            config.options().copyDefaults(true); // Copy defaults for any missing paths
-            saveConfig(); // Save to write defaults to disk if any were added
+            config.options().copyDefaults(true);
+            saveConfig();
         }
     }
 
-    /**
-     * Loads values from the configuration file into memory.
-     */
+
     private void loadConfigValues() {
         prefix = ChatColor.translateAlternateColorCodes('&', config.getString("plugin-prefix", "&8[&bEvents&8] &r"));
         minPartySize = config.getInt("party.min-size", 2);
@@ -86,7 +81,6 @@ public class ConfigManager {
                 if (!key.equals("error-prefix")) { // Don't re-add error-prefix itself to messages map
                     String message = msgSection.getString(key);
                     if (message != null) {
-                        // Replace %error-prefix% placeholder within each message string
                         message = message.replace("%error-prefix%", errorPrefix);
                         messages.put(key, message);
                     }
@@ -103,11 +97,7 @@ public class ConfigManager {
         }
     }
 
-    /**
-     * Gets the main configuration object.
-     *
-     * @return The FileConfiguration object.
-     */
+
     public FileConfiguration getConfig() {
         if (config == null) {
             reloadConfig(); // Should not happen if setup is called in constructor
@@ -115,9 +105,7 @@ public class ConfigManager {
         return config;
     }
 
-    /**
-     * Saves the current configuration to disk.
-     */
+
     public void saveConfig() {
         if (config == null || configFile == null) {
             return;
@@ -129,9 +117,7 @@ public class ConfigManager {
         }
     }
 
-    /**
-     * Reloads the configuration from disk.
-     */
+
     public void reloadConfig() {
         if (configFile == null) {
             configFile = new File(plugin.getDataFolder(), "config.yml");
@@ -167,14 +153,7 @@ public class ConfigManager {
     }
 
     // --- Message Getter ---
-    /**
-     * Gets a configured message, translates color codes, and replaces placeholders.
-     * Returns the key itself (colored red) if the message is not found.
-     *
-     * @param key          The key of the message in the config.yml messages section.
-     * @param replacements Optional map of placeholders (like "%player%") to their values.
-     * @return The formatted message string.
-     */
+
     public String getMessage(String key, Map<String, String> replacements) {
         // Retrieve the raw message template (which already has %error-prefix% resolved)
         String messageTemplate = messages.get(key);
@@ -203,21 +182,12 @@ public class ConfigManager {
     }
 
 
-    /**
-     * Gets a string from the config, with color codes translated.
-     * @param path The path to the string.
-     * @param defaultValue The default value if the path is not found.
-     * @return The colored string.
-     */
+
     public String getColoredString(String path, String defaultValue) {
         return ChatColor.translateAlternateColorCodes('&', config.getString(path, defaultValue));
     }
 
-    /**
-     * Gets a list of strings from the config, with color codes translated.
-     * @param path The path to the list of strings.
-     * @return The list of colored strings.
-     */
+
     public List<String> getColoredStringList(String path) {
         List<String> list = config.getStringList(path);
         list.replaceAll(s -> ChatColor.translateAlternateColorCodes('&', s));

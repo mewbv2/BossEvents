@@ -84,7 +84,7 @@ public class ArenaInstance {
     public void setParty(List<Player> players) {
         if (players != null) {
             this.partyMemberUUIDs = players.stream().map(Player::getUniqueId).collect(Collectors.toList());
-            // Original locations are now explicitly stored by ArenaManager before calling this
+            // there's probably a better way to do this. but this works.
         } else {
             this.partyMemberUUIDs = null;
             this.originalPlayerLocations.clear();

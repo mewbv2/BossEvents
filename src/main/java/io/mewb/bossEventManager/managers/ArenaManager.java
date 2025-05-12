@@ -120,7 +120,7 @@ public class ArenaManager {
             this.faweSchematicsDir = new File(fawePluginDir, "schematics");
             if (!this.faweSchematicsDir.exists()) {
                 if (this.faweSchematicsDir.mkdirs()) {
-                    plugin.getLogger().info("Created FAWE schematics directory: " + this.faweSchematicsDir.getAbsolutePath());
+                    // plugin.getLogger().info("Created FAWE schematics directory: " + this.faweSchematicsDir.getAbsolutePath()); // Commented out
                 } else {
                     plugin.getLogger().warning("Failed to create FAWE schematics directory: " + this.faweSchematicsDir.getAbsolutePath());
                 }
@@ -226,7 +226,6 @@ public class ArenaManager {
                 return null;
             }
 
-            // Define searchLimit here
             int searchLimit = (maxConcurrentArenas > 0) ? (maxConcurrentArenas + plotsPerRow + 5) : 1000;
             for (int currentPlotId = 0; currentPlotId < searchLimit; currentPlotId++) {
                 if (!usedPlotIds.contains(currentPlotId)) {
@@ -239,12 +238,12 @@ public class ArenaManager {
                     double plotZ = startZ + (plotZIndex * plotSeparationZ);
                     Location plotOrigin = new Location(arenaWorld, plotX, startY, plotZ);
 
-                    plugin.getLogger().info("Reserved plot ID: " + currentPlotId + " at location: " + plotOrigin);
+                    // plugin.getLogger().info("Reserved plot ID: " + currentPlotId + " at location: " + plotOrigin); // Commented out
                     return new PlotInfo(currentPlotId, plotOrigin);
                 }
             }
         }
-        plugin.getLogger().severe("Could not find an available plot ID after searching up to " + ((maxConcurrentArenas > 0) ? (maxConcurrentArenas + plotsPerRow + 5) : 1000) + " plots."); // Use the same calculation for logging
+        plugin.getLogger().severe("Could not find an available plot ID after searching up to " + ((maxConcurrentArenas > 0) ? (maxConcurrentArenas + plotsPerRow + 5) : 1000) + " plots.");
         return null;
     }
 
@@ -253,7 +252,7 @@ public class ArenaManager {
             synchronized (usedPlotIds) {
                 boolean removed = usedPlotIds.remove(plotId);
                 if (removed) {
-                    plugin.getLogger().info("Released plot ID: " + plotId + ". It is now available.");
+                    // plugin.getLogger().info("Released plot ID: " + plotId + ". It is now available."); // Commented out
                 } else {
                     plugin.getLogger().warning("Attempted to release plot ID: " + plotId + ", but it was not in the used set.");
                 }
@@ -312,7 +311,7 @@ public class ArenaManager {
                 synchronized (activeArenaInstances) {
                     activeArenaInstances.add(instance);
                 }
-                plugin.getLogger().info("Arena instance " + instance.getInstanceId() + " (Plot ID: " + plotId + ") created at " + plotOrigin + " with theme " + theme.getDisplayName());
+                // plugin.getLogger().info("Arena instance " + instance.getInstanceId() + " (Plot ID: " + plotId + ") created at " + plotOrigin + " with theme " + theme.getDisplayName()); // Commented out
                 future.complete(instance);
             }
         }.runTaskAsynchronously(plugin);
@@ -360,16 +359,16 @@ public class ArenaManager {
         double calculatedLevel = baseLevel; if (partySize > 1) { calculatedLevel += (partySize - 1) * levelPerMember; }
         calculatedLevel = Math.min(calculatedLevel, maxLevel); calculatedLevel = Math.max(1.0, calculatedLevel);
         int finalBossLevel = (int) Math.round(calculatedLevel); if (finalBossLevel < 1) finalBossLevel = 1;
-        plugin.getLogger().info("Calculated boss level for " + bossDef.getDisplayName() + ": " + finalBossLevel);
+        // plugin.getLogger().info("Calculated boss level for " + bossDef.getDisplayName() + ": " + finalBossLevel); // Commented out
         try {
             ActiveMob spawnedActiveMob = mythicMobToSpawn.spawn(abstractBossSpawnLoc, finalBossLevel);
             if (spawnedActiveMob != null && spawnedActiveMob.getEntity() != null && spawnedActiveMob.getEntity().isLiving()) {
                 Entity spawnedBossEntity = spawnedActiveMob.getEntity().getBukkitEntity();
                 instance.setBossEntityUUID(spawnedBossEntity.getUniqueId()); instance.setState(ArenaInstance.ArenaState.IN_USE);
-                plugin.getLogger().info("Successfully spawned boss " + bossDef.getMythicMobId() + " (Level " + finalBossLevel + ") in arena " + instance.getInstanceId());
+                // plugin.getLogger().info("Successfully spawned boss " + bossDef.getMythicMobId() + " (Level " + finalBossLevel + ") in arena " + instance.getInstanceId()); // Commented out
             } else { plugin.getLogger().severe("Failed to spawn boss " + bossDef.getMythicMobId()); partyPlayers.forEach(p -> p.sendMessage(ChatColor.RED + "Error: Failed to spawn the boss.")); endEvent(instance); }
         } catch (Exception e) { plugin.getLogger().log(Level.SEVERE, "Exception while spawning MythicMob " + bossDef.getMythicMobId(), e); partyPlayers.forEach(p -> p.sendMessage(ChatColor.RED + "Critical Error spawning boss.")); endEvent(instance); }
-        if (instance.getState() == ArenaInstance.ArenaState.IN_USE) { plugin.getLogger().info("Event started in arena " + instance.getInstanceId()); }
+        // if (instance.getState() == ArenaInstance.ArenaState.IN_USE) { plugin.getLogger().info("Event started in arena " + instance.getInstanceId()); } // Commented out
     }
 
     public void endEvent(ArenaInstance instance) {
@@ -380,7 +379,7 @@ public class ArenaManager {
         UUID bossUUID = instance.getBossEntityUUID();
 
         instance.setState(ArenaInstance.ArenaState.CLEANING_UP);
-        plugin.getLogger().info("Event ended in arena " + instance.getInstanceId() + " (Plot ID: " + instance.getPlotId() + "). Scheduling for cleanup.");
+        // plugin.getLogger().info("Event ended in arena " + instance.getInstanceId() + " (Plot ID: " + instance.getPlotId() + "). Scheduling for cleanup."); // Commented out
 
         if (activeMusic != null && !activeMusic.isEmpty()) {
             if (!originalLocations.isEmpty()) {
@@ -427,7 +426,7 @@ public class ArenaManager {
         final int plotIdToRelease = instance.getPlotId();
         cleanupArena(instance).thenAccept(success -> {
             if (success) {
-                plugin.getLogger().info("Arena " + instance.getInstanceId() + " (Plot ID: " + plotIdToRelease + ") cleaned up successfully.");
+                // plugin.getLogger().info("Arena " + instance.getInstanceId() + " (Plot ID: " + plotIdToRelease + ") cleaned up successfully."); // Commented out
                 releasePlot(plotIdToRelease);
             } else {
                 plugin.getLogger().severe("Failed to cleanup arena " + instance.getInstanceId() + " (Plot ID: " + plotIdToRelease + "). Plot may remain marked as used.");
@@ -500,7 +499,7 @@ public class ArenaManager {
                 final int plotIdToRelease = instance.getPlotId();
                 cleanupArena(instance).thenAccept(success -> {
                     if (success) {
-                        plugin.getLogger().info("Arena " + instance.getInstanceId() + " cleaned during shutdown process.");
+                        // plugin.getLogger().info("Arena " + instance.getInstanceId() + " cleaned during shutdown process."); // Commented out
                         releasePlot(plotIdToRelease);
                     } else {
                         plugin.getLogger().warning("Arena " + instance.getInstanceId() + " failed to clean during shutdown process. Plot ID " + plotIdToRelease + " may need manual review if it wasn't released.");
